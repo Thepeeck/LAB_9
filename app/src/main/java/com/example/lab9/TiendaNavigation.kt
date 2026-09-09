@@ -2,6 +2,9 @@ package com.example.lab9
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.ui.NavDisplay
 import com.example.lab9.Pantalla.CatalogoScreen
@@ -14,6 +17,7 @@ fun TiendaNavigation(
     onFavoritoToggle: (String) -> Unit
 ) {
     val backStack = rememberNavBackStack(StoreNavKey.Catalog)
+    val estadoActual by rememberUpdatedState(uiState)
 
     fun regresar() {
         if (backStack.size > 1) {
@@ -30,58 +34,66 @@ fun TiendaNavigation(
         entryProvider = { key ->
             when (key) {
                 StoreNavKey.Catalog -> {
-                    CatalogoScreen(
-                        instrumentos = uiState.instrumentos,
-                        favoritos = uiState.favoritos,
-                        onInstrumentoClick = { instrumentoId ->
-                            backStack.add(
-                                StoreNavKey.Detail(
-                                    productId = instrumentoId
-                                )
-                            )
-                        },
-                        onFavoritoToggle = onFavoritoToggle
-                    )
-                }
-
-                is StoreNavKey.Detail -> {
-                    val instrumento = uiState.instrumentos.find {
-                        it.id == key.productId
-                    }
-
-                    if (instrumento != null) {
-                        DetalleScreen(
-                            instrumento = instrumento,
-                            esFavorito = instrumento.id in uiState.favoritos,
-                            onFavoritoToggle = onFavoritoToggle,
-                            onVerPerfil = { marcaId ->
+                    NavEntry(key) {
+                        CatalogoScreen(
+                            instrumentos = estadoActual.instrumentos,
+                            favoritos = estadoActual.favoritos,
+                            onInstrumentoClick = { instrumentoId ->
                                 backStack.add(
-                                    StoreNavKey.Profile(
-                                        profileId = marcaId
+                                    StoreNavKey.Detail(
+                                        productId = instrumentoId
                                     )
                                 )
                             },
-                            onBack = {
-                                regresar()
-                            }
+                            onFavoritoToggle = onFavoritoToggle
                         )
+                    }
+                }
+
+                is StoreNavKey.Detail -> {
+                    NavEntry(key) {
+                        val instrumento = estadoActual.instrumentos.find {
+                            it.id == key.productId
+                        }
+
+                        if (instrumento != null) {
+                            DetalleScreen(
+                                instrumento = instrumento,
+                                esFavorito = instrumento.id in estadoActual.favoritos,
+                                onFavoritoToggle = onFavoritoToggle,
+                                onVerPerfil = { marcaId ->
+                                    backStack.add(
+                                        StoreNavKey.Profile(
+                                            profileId = marcaId
+                                        )
+                                    )
+                                },
+                                onBack = {
+                                    regresar()
+                                }
+                            )
+                        }
                     }
                 }
 
                 is StoreNavKey.Profile -> {
-                    val marca = uiState.marcas.find {
-                        it.id == key.profileId
-                    }
+                    NavEntry(key) {
+                        val marca = estadoActual.marcas.find {
+                            it.id == key.profileId
+                        }
 
-                    if (marca != null) {
-                        PerfilScreen(
-                            marca = marca,
-                            onBack = {
-                                regresar()
-                            }
-                        )
+                        if (marca != null) {
+                            PerfilScreen(
+                                marca = marca,
+                                onBack = {
+                                    regresar()
+                                }
+                            )
+                        }
                     }
                 }
+
+                else -> error("Ruta de navegación no reconocida: $key")
             }
         }
     )
