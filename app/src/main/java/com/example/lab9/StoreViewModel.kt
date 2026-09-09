@@ -69,6 +69,8 @@ class StoreViewModel : ViewModel() {
                 favoritosActuales + instrumentoId
             }
 
+        android.util.Log.d("FavoritoDebug", "id=$instrumentoId antes=$favoritosActuales despues=$nuevosFavoritos")
+
         _uiState.value = _uiState.value.copy(
             favoritos = nuevosFavoritos
         )
