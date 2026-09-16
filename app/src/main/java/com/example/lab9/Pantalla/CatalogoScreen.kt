@@ -1,28 +1,28 @@
 package com.example.lab9.Pantalla
 
+import android.util.Log
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material3.Card
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.lab9.Instrumento
-import androidx.compose.material3.ExperimentalMaterial3Api
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -42,69 +42,68 @@ fun CatalogoScreen(
         }
     ) { padding ->
 
-        Column(
-            modifier = Modifier
-                .padding(padding)
-                .verticalScroll(rememberScrollState())
+        LazyVerticalGrid(
+            columns = GridCells.Fixed(2),
+            modifier = Modifier.padding(padding),
+            contentPadding = PaddingValues(8.dp)
         ) {
 
-            instrumentos.chunked(2).forEach { fila ->
+            items(
+                items = instrumentos,
+                key = { instrumento -> instrumento.id }
+            ) { instrumento ->
 
-                Row(
+                DisposableEffect(instrumento.id) {
+                    Log.d(
+                        "Catalogo",
+                        "Entró: ${instrumento.id}"
+                    )
+
+                    onDispose {
+                        Log.d(
+                            "Catalogo",
+                            "Salió: ${instrumento.id}"
+                        )
+                    }
+                }
+
+                Card(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        .padding(4.dp)
+                        .clickable {
+                            onInstrumentoClick(instrumento.id)
+                        }
                 ) {
 
-                    fila.forEach { instrumento ->
+                    Column(
+                        modifier = Modifier
+                            .padding(12.dp)
+                    ) {
 
-                        Card(
-                            modifier = Modifier
-                                .weight(1f)
-                                .clickable {
-                                    onInstrumentoClick(instrumento.id)
-                                }
-                        ) {
+                        Text(instrumento.nombre)
 
-                            Column(
-                                modifier = Modifier
-                                    .padding(12.dp)
-                            ) {
+                        Text(
+                            "$${instrumento.precio}"
+                        )
 
-                                Text(instrumento.nombre)
+                        Text(
+                            "Stock: ${instrumento.stock}"
+                        )
 
-                                Text(
-                                    "$${instrumento.precio}"
-                                )
-
-                                Text(
-                                    "Stock: ${instrumento.stock}"
-                                )
-
-                                IconButton(
-                                    onClick = {
-                                        onFavoritoToggle(instrumento.id)
-                                    }
-                                ) {
-                                    Icon(
-                                        imageVector =
-                                            if (favoritos.contains(instrumento.id)) {
-                                                Icons.Filled.Favorite
-                                            } else {
-                                                Icons.Filled.FavoriteBorder
-                                            },
-                                        contentDescription = "Favorito"
-                                    )
-                                }
+                        IconButton(
+                            onClick = {
+                                onFavoritoToggle(instrumento.id)
                             }
-                        }
-                    }
-
-                    if (fila.size == 1) {
-                        Column(
-                            modifier = Modifier.weight(1f)
                         ) {
+                            Icon(
+                                imageVector =
+                                    if (favoritos.contains(instrumento.id)) {
+                                        Icons.Filled.Favorite
+                                    } else {
+                                        Icons.Filled.FavoriteBorder
+                                    },
+                                contentDescription = "Favorito"
+                            )
                         }
                     }
                 }
