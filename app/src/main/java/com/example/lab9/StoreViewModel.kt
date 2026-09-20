@@ -12,6 +12,13 @@ data class StoreUiState(
     val favoritos: Set<String> = emptySet()
 )
 
+data class StoreUiState(
+    val instrumentos: List<Instrumento>,
+    val marcas: List<Marca>,
+    val favoritos: Set<String> = emptySet(),
+    val query: String = ""
+)
+
 class StoreViewModel : ViewModel() {
 
 
