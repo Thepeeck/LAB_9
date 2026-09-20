@@ -54,6 +54,10 @@ class StoreViewModel : ViewModel() {
 
     private val instrumentosGenerados = generarInstrumentos()
 
+    fun onQueryChange(query: String) {
+    _uiState.value = _uiState.value.copy(query = query)
+}
+
     private val _uiState = MutableStateFlow(
         StoreUiState(
             instrumentos = instrumentosGenerados,
