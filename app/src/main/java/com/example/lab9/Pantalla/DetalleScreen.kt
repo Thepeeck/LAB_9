@@ -1,6 +1,8 @@
 package com.example.lab9.Pantalla
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -23,6 +25,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import com.example.lab9.Instrumento
 import androidx.compose.material3.Button
+import androidx.compose.ui.unit.dp
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -55,6 +58,13 @@ fun DetalleScreen(
                 .padding(padding)
                 .verticalScroll(rememberScrollState())
         ) {
+            ProductImage(
+                imageUrl = instrumento.imageUrl,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(240.dp)
+            )
+
             Text(instrumento.nombre)
             Text("$${instrumento.precio}")
             Text(instrumento.descripcion)

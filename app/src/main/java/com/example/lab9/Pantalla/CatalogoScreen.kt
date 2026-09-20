@@ -38,6 +38,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.lab9.Instrumento
 import kotlinx.coroutines.launch
+import androidx.compose.foundation.layout.height
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -202,6 +203,13 @@ fun CatalogoScreen(
                             Column(
                                 modifier = Modifier.padding(12.dp)
                             ) {
+                                ProductImage(
+                                    imageUrl = instrumento.imageUrl,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(120.dp)
+                                )
+
                                 Text(instrumento.nombre)
                                 Text("$${instrumento.precio}")
                                 Text("Stock: ${instrumento.stock}")
