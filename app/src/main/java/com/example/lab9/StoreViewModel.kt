@@ -6,17 +6,14 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlin.random.Random
 
-data class StoreUiState(
-    val instrumentos: List<Instrumento>,
-    val marcas: List<Marca>,
-    val favoritos: Set<String> = emptySet()
-)
-
+// se estaba declarando lo mismo el StoreUiState
 data class StoreUiState(
     val instrumentos: List<Instrumento>,
     val marcas: List<Marca>,
     val favoritos: Set<String> = emptySet(),
-    val query: String = ""
+    val query: String = "",
+    val pedido: List<LineaPedido> = emptyList(),
+    val mensajePedido: String? = null
 )
 
 class StoreViewModel : ViewModel() {
@@ -206,4 +203,39 @@ class StoreViewModel : ViewModel() {
         )
     }
 
+    fun agregarProducto(instrumentoId: String, cantidad: Int = 1) {
+        val estadoActual = _uiState.value
+        val instrumento = estadoActual.instrumentos.find { it.id == instrumentoId }
+            ?: return
+
+        when (val resultado = agregarAlPedido(estadoActual.pedido, instrumento, cantidad)) {
+            is ResultadoPedido.Exito -> {
+                _uiState.value = estadoActual.copy(
+                    pedido = resultado.pedido,
+                    mensajePedido = null
+                )
+            }
+            is ResultadoPedido.Rechazado -> {
+                _uiState.value = estadoActual.copy(
+                    mensajePedido = resultado.motivo
+                )
+            }
+        }
+    }
+
+    fun disminuirProducto(instrumentoId: String) {
+        val estadoActual = _uiState.value
+        _uiState.value = estadoActual.copy(
+            pedido = disminuirEnPedido(estadoActual.pedido, instrumentoId)
+        )
+    }
+
+    fun eliminarProducto(instrumentoId: String) {
+        val estadoActual = _uiState.value
+        _uiState.value = estadoActual.copy(
+            pedido = eliminarDelPedido(estadoActual.pedido, instrumentoId)
+        )
+    }
+
 }
+

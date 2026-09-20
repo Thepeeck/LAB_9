@@ -25,6 +25,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -45,9 +46,11 @@ fun CatalogoScreen(
     query: String,
     favoritos: Set<String>,
     gridState: LazyGridState,
+    totalUnidadesPedido: Int,
     onQueryChange: (String) -> Unit,
     onInstrumentoClick: (String) -> Unit,
-    onFavoritoToggle: (String) -> Unit
+    onFavoritoToggle: (String) -> Unit,
+    onVerPedido: () -> Unit
 ) {
     val filteredProducts = remember(instrumentos, query) {
         val normalizedQuery = query.trim()
@@ -78,6 +81,11 @@ fun CatalogoScreen(
             TopAppBar(
                 title = {
                     Text("Catálogo de instrumentos")
+                },
+                actions = {
+                    TextButton(onClick = onVerPedido) {
+                        Text("Pedido · $totalUnidadesPedido")
+                    }
                 }
             )
         },

@@ -36,6 +36,10 @@ fun TiendaApp(
     TiendaNavigation(
         uiState = uiState,
         onQueryChange = viewModel::onQueryChange,
-        onFavoritoToggle = viewModel::alternarFavorito
+        onFavoritoToggle = viewModel::alternarFavorito,
+        onDisminuirProducto = viewModel::disminuirProducto,
+        onEliminarProducto = viewModel::eliminarProducto,
+        onAgregarProducto = viewModel::agregarProducto
+
     )
 }

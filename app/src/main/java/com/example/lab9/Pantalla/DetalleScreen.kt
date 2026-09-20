@@ -22,13 +22,17 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import com.example.lab9.Instrumento
+import androidx.compose.material3.Button
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DetalleScreen(
     instrumento: Instrumento,
     esFavorito: Boolean,
+    cantidadEnPedido: Int,
+    mensajePedido: String?,
     onFavoritoToggle: (String) -> Unit,
+    onAgregarPedido: (String) -> Unit,
     onVerPerfil: (String) -> Unit,
     onBack: () -> Unit
 ) {
@@ -54,6 +58,16 @@ fun DetalleScreen(
             Text(instrumento.nombre)
             Text("$${instrumento.precio}")
             Text(instrumento.descripcion)
+
+            Text("${instrumento.stock} disponibles" + if (cantidadEnPedido > 0) " · $cantidadEnPedido en el pedido" else "")
+
+            Button(onClick = { onAgregarPedido(instrumento.id) }) {
+                Text("Agregar al pedido")
+            }
+
+            if (mensajePedido != null) {
+                Text(mensajePedido)
+            }
 
             IconButton(onClick = { onFavoritoToggle(instrumento.id) }) {
                 Icon(

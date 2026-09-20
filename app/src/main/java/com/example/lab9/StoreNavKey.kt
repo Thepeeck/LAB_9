@@ -10,6 +10,9 @@ sealed interface StoreNavKey : NavKey {
     data object Catalog : StoreNavKey
 
     @Serializable
+    data object Order : StoreNavKey
+
+    @Serializable
     data class Detail(val productId: String) : StoreNavKey
 
     @Serializable
