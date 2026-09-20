@@ -60,7 +60,6 @@ fun TiendaNavigation(
                             instrumentos = currentUiState.instrumentos,
                             query = currentUiState.query,
                             favoritos = currentUiState.favoritos,
-                            gridState = catalogGridState,
                             totalUnidadesPedido = currentUiState.pedido.sumOf { it.cantidad },
                             onQueryChange = onQueryChange,
                             onInstrumentoClick = { instrumentoId ->

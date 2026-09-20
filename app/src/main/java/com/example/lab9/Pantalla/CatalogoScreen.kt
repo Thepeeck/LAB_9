@@ -4,22 +4,18 @@ import android.util.Log
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyGridState
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
@@ -29,8 +25,6 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.derivedStateOf
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
@@ -45,7 +39,6 @@ fun CatalogoScreen(
     instrumentos: List<Instrumento>,
     query: String,
     favoritos: Set<String>,
-    gridState: LazyGridState,
     totalUnidadesPedido: Int,
     onQueryChange: (String) -> Unit,
     onInstrumentoClick: (String) -> Unit,
@@ -67,20 +60,13 @@ fun CatalogoScreen(
         }
     }
 
-    val showScrollToTop by remember {
-        derivedStateOf {
-            gridState.firstVisibleItemIndex >= 4 ||
-                gridState.firstVisibleItemScrollOffset > 0
-        }
-    }
-
     val coroutineScope = rememberCoroutineScope()
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {
-                    Text("Catálogo de instrumentos")
+                    Text("Catálogo de instrumentos (convencional)")
                 },
                 actions = {
                     TextButton(onClick = onVerPedido) {
@@ -88,26 +74,6 @@ fun CatalogoScreen(
                     }
                 }
             )
-        },
-        floatingActionButton = {
-            if (showScrollToTop && filteredProducts.isNotEmpty()) {
-                ExtendedFloatingActionButton(
-                    onClick = {
-                        coroutineScope.launch {
-                            gridState.animateScrollToItem(0)
-                        }
-                    },
-                    icon = {
-                        Icon(
-                            imageVector = Icons.Filled.ArrowUpward,
-                            contentDescription = null
-                        )
-                    },
-                    text = {
-                        Text("Volver arriba")
-                    }
-                )
-            }
         }
     ) { padding ->
         Column(
@@ -120,10 +86,6 @@ fun CatalogoScreen(
                 value = query,
                 onValueChange = { newQuery ->
                     onQueryChange(newQuery)
-
-                    coroutineScope.launch {
-                        gridState.scrollToItem(0)
-                    }
                 },
                 modifier = Modifier
                     .fillMaxWidth()
@@ -136,7 +98,7 @@ fun CatalogoScreen(
 
             Text(
                 text = "${filteredProducts.size} de " +
-                    "${instrumentos.size} productos",
+                        "${instrumentos.size} productos",
                 modifier = Modifier.padding(bottom = 8.dp)
             )
 
@@ -151,10 +113,6 @@ fun CatalogoScreen(
                     Button(
                         onClick = {
                             onQueryChange("")
-
-                            coroutineScope.launch {
-                                gridState.scrollToItem(0)
-                            }
                         },
                         modifier = Modifier.padding(top = 12.dp)
                     ) {
@@ -162,68 +120,67 @@ fun CatalogoScreen(
                     }
                 }
             } else {
-                LazyVerticalGrid(
-                    columns = GridCells.Fixed(2),
-                    state = gridState,
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(
-                        bottom = 96.dp
-                    )
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState())
                 ) {
-                    items(
-                        items = filteredProducts,
-                        key = { instrumento ->
-                            instrumento.id
-                        }
-                    ) { instrumento ->
-                        DisposableEffect(instrumento.id) {
-                            Log.d(
-                                "Catalogo",
-                                "Entró: ${instrumento.id}"
-                            )
-
-                            onDispose {
-                                Log.d(
-                                    "Catalogo",
-                                    "Salió: ${instrumento.id}"
-                                )
-                            }
-                        }
-
-                        Card(
-                            modifier = Modifier
-                                .padding(4.dp)
-                                .clickable {
-                                    onInstrumentoClick(
-                                        instrumento.id
-                                    )
-                                }
+                    filteredProducts.chunked(2).forEach { fila ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth()
                         ) {
-                            Column(
-                                modifier = Modifier.padding(12.dp)
-                            ) {
-                                Text(instrumento.nombre)
-                                Text("$${instrumento.precio}")
-                                Text("Stock: ${instrumento.stock}")
+                            fila.forEach { instrumento ->
+                                DisposableEffect(instrumento.id) {
+                                    Log.d(
+                                        "CatalogoProbe",
+                                        "Entró: ${instrumento.id}"
+                                    )
 
-                                IconButton(
-                                    onClick = {
-                                        onFavoritoToggle(
-                                            instrumento.id
+                                    onDispose {
+                                        Log.d(
+                                            "CatalogoProbe",
+                                            "Salió: ${instrumento.id}"
                                         )
                                     }
+                                }
+
+                                Card(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .padding(4.dp)
+                                        .clickable {
+                                            onInstrumentoClick(
+                                                instrumento.id
+                                            )
+                                        }
                                 ) {
-                                    Icon(
-                                        imageVector =
-                                            if (
-                                                instrumento.id in favoritos
-                                            ) {
-                                                Icons.Filled.Favorite
-                                            } else {
-                                                Icons.Filled.FavoriteBorder
-                                            },
-                                        contentDescription = "Favorito"
-                                    )
+                                    Column(
+                                        modifier = Modifier.padding(12.dp)
+                                    ) {
+                                        Text(instrumento.nombre)
+                                        Text("$${instrumento.precio}")
+                                        Text("Stock: ${instrumento.stock}")
+
+                                        IconButton(
+                                            onClick = {
+                                                onFavoritoToggle(
+                                                    instrumento.id
+                                                )
+                                            }
+                                        ) {
+                                            Icon(
+                                                imageVector =
+                                                    if (
+                                                        instrumento.id in favoritos
+                                                    ) {
+                                                        Icons.Filled.Favorite
+                                                    } else {
+                                                        Icons.Filled.FavoriteBorder
+                                                    },
+                                                contentDescription = "Favorito"
+                                            )
+                                        }
+                                    }
                                 }
                             }
                         }
