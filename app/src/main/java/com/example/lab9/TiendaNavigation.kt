@@ -1,6 +1,10 @@
 package com.example.lab9
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.runtime.Composable
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.ui.NavDisplay
@@ -11,9 +15,13 @@ import com.example.lab9.Pantalla.PerfilScreen
 @Composable
 fun TiendaNavigation(
     uiState: StoreUiState,
+    onQueryChange: (String) -> Unit,
     onFavoritoToggle: (String) -> Unit
 ) {
     val backStack = rememberNavBackStack(StoreNavKey.Catalog)
+
+    // Vive fuera de NavDisplay para conservar la posición al abrir un detalle.
+    val catalogGridState = rememberLazyGridState()
 
     fun regresar() {
         if (backStack.size > 1) {
@@ -27,12 +35,24 @@ fun TiendaNavigation(
 
     NavDisplay(
         backStack = backStack,
+        transitionSpec = {
+            fadeIn() togetherWith fadeOut()
+        },
+        popTransitionSpec = {
+            fadeIn() togetherWith fadeOut()
+        },
+        predictivePopTransitionSpec = {
+            fadeIn() togetherWith fadeOut()
+        },
         entryProvider = { key ->
             when (key) {
                 StoreNavKey.Catalog -> {
                     CatalogoScreen(
                         instrumentos = uiState.instrumentos,
+                        query = uiState.query,
                         favoritos = uiState.favoritos,
+                        gridState = catalogGridState,
+                        onQueryChange = onQueryChange,
                         onInstrumentoClick = { instrumentoId ->
                             backStack.add(
                                 StoreNavKey.Detail(
