@@ -7,7 +7,7 @@ plugins {
 android {
     namespace = "com.example.lab9"
     compileSdk {
-        version = release(36) {
+        version = release(37) {
             minorApiLevel = 1
         }
     }
@@ -60,5 +60,6 @@ dependencies {
     androidTestImplementation(libs.androidx.junit)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
     debugImplementation(libs.androidx.compose.ui.tooling)
-
+    implementation(libs.coil.compose)
+    implementation(libs.coil.network.okhttp)
 }
