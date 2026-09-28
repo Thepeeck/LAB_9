@@ -34,6 +34,7 @@ fun OrderScreen(
     instrumentos: List<Instrumento>,
     onDisminuir: (String) -> Unit,
     onEliminar: (String) -> Unit,
+    onContinuarCheckout: () -> Unit,
     onBack: () -> Unit
 ) {
     Scaffold(
@@ -56,7 +57,9 @@ fun OrderScreen(
         ) {
             if (pedido.isEmpty()) {
                 Column(
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
                 ) {
@@ -66,6 +69,7 @@ fun OrderScreen(
             } else {
                 LazyColumn(
                     modifier = Modifier.weight(1f)
+
                 ) {
                     items(
                         items = pedido,
@@ -110,6 +114,15 @@ fun OrderScreen(
                     text = "Total: $${calcularTotal(pedido, instrumentos)}",
                     modifier = Modifier.padding(top = 16.dp)
                 )
+            }
+            Button(
+                onClick = onContinuarCheckout,
+                enabled = pedido.sumOf { it.cantidad } > 0,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 16.dp)
+            ) {
+                Text("Continuar al checkout")
             }
         }
     }

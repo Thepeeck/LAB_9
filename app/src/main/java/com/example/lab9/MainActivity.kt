@@ -32,6 +32,8 @@ fun TiendaApp(
     viewModel: StoreViewModel
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val checkoutUiState by viewModel.checkoutUiState.collectAsStateWithLifecycle()
+    val lastReceipt by viewModel.lastReceipt.collectAsStateWithLifecycle()
 
     TiendaNavigation(
         uiState = uiState,
@@ -39,7 +41,16 @@ fun TiendaApp(
         onFavoritoToggle = viewModel::alternarFavorito,
         onDisminuirProducto = viewModel::disminuirProducto,
         onEliminarProducto = viewModel::eliminarProducto,
-        onAgregarProducto = viewModel::agregarProducto
+        onAgregarProducto = viewModel::agregarProducto,
+        checkoutUiState = checkoutUiState,
+        onFullNameChange = viewModel::onFullNameChange,
+        onPhoneChange = viewModel::onPhoneChange,
+        onBillingTypeChange = viewModel::onBillingTypeChange,
+        onNitChange = viewModel::onNitChange,
+        onBusinessNameChange = viewModel::onBusinessNameChange,
+        onPaymentMethodChange = viewModel::onPaymentMethodChange,
+        onConfirmOrder = viewModel::onConfirmOrder,
+                lastReceipt = lastReceipt
 
     )
 }

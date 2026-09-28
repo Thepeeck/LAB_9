@@ -23,6 +23,13 @@ class StoreViewModel : ViewModel() {
     val checkoutUiState: StateFlow<CheckoutUiState> =
         _checkoutUiState.asStateFlow()
 
+    private val _lastReceipt = MutableStateFlow<OrderReceipt?>(null)
+
+    val lastReceipt: StateFlow<OrderReceipt?> =
+        _lastReceipt.asStateFlow()
+
+    private var orderCounter = 0
+
     fun onFullNameChange(value: String) {
         _checkoutUiState.value = _checkoutUiState.value.copy(
             fullName = value,
@@ -71,6 +78,37 @@ class StoreViewModel : ViewModel() {
         _checkoutUiState.value = _checkoutUiState.value.copy(
             paymentMethod = method
         )
+    }
+
+    fun onConfirmOrder() {
+        val checkout = _checkoutUiState.value
+        val state = _uiState.value
+
+        val units = state.pedido.sumOf { it.cantidad }
+
+        if (!checkout.isFormValid || units <= 0) return
+
+        val total = calcularTotal(
+            pedido = state.pedido,
+            instrumentos = state.instrumentos
+        )
+
+        orderCounter++
+
+        _lastReceipt.value = OrderReceipt(
+            folio = "#ORD-${orderCounter.toString().padStart(5, '0')}",
+            customerName = checkout.fullName.trim(),
+            billingType = checkout.billingType,
+            paymentMethod = checkout.paymentMethod,
+            total = total
+        )
+
+        _uiState.value = state.copy(
+            pedido = emptyList(),
+            mensajePedido = null
+        )
+
+        _checkoutUiState.value = CheckoutUiState()
     }
 
     private val productosOriginales = listOf(

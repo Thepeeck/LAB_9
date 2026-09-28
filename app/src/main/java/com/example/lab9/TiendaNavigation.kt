@@ -15,6 +15,9 @@ import com.example.lab9.Pantalla.DetalleScreen
 import com.example.lab9.Pantalla.PerfilScreen
 import com.example.lab9.Pantalla.OrderScreen
 import androidx.compose.runtime.rememberUpdatedState
+import com.example.lab9.Pantalla.CheckoutScreen
+import com.example.lab9.Pantalla.OrderConfirmationScreen
+
 
 @Composable
 fun TiendaNavigation(
@@ -23,10 +26,21 @@ fun TiendaNavigation(
     onFavoritoToggle: (String) -> Unit,
     onAgregarProducto: (String) -> Unit,
     onDisminuirProducto: (String) -> Unit,
-    onEliminarProducto: (String) -> Unit
+    onEliminarProducto: (String) -> Unit,
+    checkoutUiState: CheckoutUiState,
+    onFullNameChange: (String) -> Unit,
+    onPhoneChange: (String) -> Unit,
+    onBillingTypeChange: (BillingType) -> Unit,
+    onNitChange: (String) -> Unit,
+    onBusinessNameChange: (String) -> Unit,
+    onPaymentMethodChange: (PaymentMethod) -> Unit,
+    onConfirmOrder: () -> Unit,
+    lastReceipt: OrderReceipt?
 ) {
     val backStack = rememberNavBackStack(StoreNavKey.Catalog)
     val currentUiState by rememberUpdatedState(uiState)
+    val currentCheckoutState by rememberUpdatedState(checkoutUiState)
+    val currentReceipt by rememberUpdatedState(lastReceipt)
 
     // Vive fuera de NavDisplay para conservar la posición al abrir un detalle.
     val catalogGridState = rememberLazyGridState()
@@ -128,10 +142,43 @@ fun TiendaNavigation(
                             instrumentos = currentUiState.instrumentos,
                             onDisminuir = onDisminuirProducto,
                             onEliminar = onEliminarProducto,
+                            onContinuarCheckout = {
+                                backStack.add(StoreNavKey.Checkout)
+                            },
+                            onBack = { regresar() }
+                        )
+                    }
+                    StoreNavKey.Checkout -> {
+                        CheckoutScreen(
+                            uiState = currentCheckoutState,
+                            pedido = currentUiState.pedido,
+                            instrumentos = currentUiState.instrumentos,
+                            onFullNameChange = onFullNameChange,
+                            onPhoneChange = onPhoneChange,
+                            onBillingTypeChange = onBillingTypeChange,
+                            onNitChange = onNitChange,
+                            onBusinessNameChange = onBusinessNameChange,
+                            onPaymentMethodChange = onPaymentMethodChange,
+                            onConfirmOrder = {
+                                onConfirmOrder()
+                                backStack.add(StoreNavKey.OrderConfirmation)
+                            },
                             onBack = { regresar() }
                         )
                     }
 
+                    StoreNavKey.OrderConfirmation -> {
+                        currentReceipt?.let { receipt ->
+                            OrderConfirmationScreen(
+                                receipt = receipt,
+                                onBackToCatalog = {
+                                    while (backStack.size > 1) {
+                                        backStack.removeLastOrNull()
+                                    }
+                                }
+                            )
+                        }
+                    }
                 }
             }
         }
