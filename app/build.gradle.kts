@@ -2,10 +2,12 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.ksp)
 }
 
 android {
     namespace = "com.example.lab9"
+
     compileSdk {
         version = release(37) {
             minorApiLevel = 1
@@ -29,10 +31,12 @@ android {
             }
         }
     }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
+
     buildFeatures {
         compose = true
     }
@@ -62,4 +66,8 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.tooling)
     implementation(libs.coil.compose)
     implementation(libs.coil.network.okhttp)
+    implementation(libs.androidx.room3.runtime)
+    ksp(libs.androidx.room3.compiler)
+    implementation(libs.androidx.sqlite.framework)
+    implementation(libs.androidx.datastore.preferences)
 }
