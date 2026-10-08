@@ -1,9 +1,16 @@
+
 package com.example.lab9
 
-import androidx.lifecycle.ViewModel
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.launch
 import kotlin.random.Random
 
 data class StoreUiState(
@@ -15,7 +22,13 @@ data class StoreUiState(
     val mensajePedido: String? = null
 )
 
-class StoreViewModel : ViewModel() {
+class StoreViewModel(
+    application: Application
+) : AndroidViewModel(application) {
+
+    private val dao = StoreDatabase
+        .getDatabase(application)
+        .storeDao()
 
     // Lab 11: estado del checkout.
     private val _checkoutUiState = MutableStateFlow(CheckoutUiState())
@@ -82,7 +95,7 @@ class StoreViewModel : ViewModel() {
 
     fun onConfirmOrder() {
         val checkout = _checkoutUiState.value
-        val state = _uiState.value
+        val state = uiState.value
 
         val units = state.pedido.sumOf { it.cantidad }
 
@@ -103,8 +116,11 @@ class StoreViewModel : ViewModel() {
             total = total
         )
 
-        _uiState.value = state.copy(
-            pedido = emptyList(),
+        viewModelScope.launch {
+            dao.clearOrderLines()
+        }
+
+        _uiState.value = _uiState.value.copy(
             mensajePedido = null
         )
 
@@ -143,10 +159,6 @@ class StoreViewModel : ViewModel() {
 
     private val instrumentosGenerados = generarInstrumentos()
 
-    fun onQueryChange(query: String) {
-        _uiState.value = _uiState.value.copy(query = query)
-    }
-
     private val _uiState = MutableStateFlow(
         StoreUiState(
             instrumentos = instrumentosGenerados,
@@ -169,7 +181,34 @@ class StoreViewModel : ViewModel() {
         )
     )
 
-    val uiState: StateFlow<StoreUiState> = _uiState.asStateFlow()
+    val uiState: StateFlow<StoreUiState> = combine(
+        _uiState,
+        dao.observeFavorites(),
+        dao.observeOrderLines()
+    ) { state, favorites, orderLines ->
+
+        state.copy(
+            favoritos = favorites.map {
+                it.instrumentoId
+            }.toSet(),
+
+            pedido = orderLines.map {
+                LineaPedido(
+                    instrumentoId = it.instrumentoId,
+                    cantidad = it.cantidad
+                )
+            }
+        )
+
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5_000),
+        initialValue = _uiState.value
+    )
+
+    fun onQueryChange(query: String) {
+        _uiState.value = _uiState.value.copy(query = query)
+    }
 
     private fun generarInstrumentos(): List<Instrumento> {
         val random = Random(12345)
@@ -224,45 +263,45 @@ class StoreViewModel : ViewModel() {
 
         val descripciones = mapOf(
             "Guitarra acústica" to
-                    "Guitarra acústica para práctica y presentaciones.",
+                "Guitarra acústica para práctica y presentaciones.",
             "Guitarra eléctrica" to
-                    "Guitarra eléctrica para interpretación musical.",
+                "Guitarra eléctrica para interpretación musical.",
             "Bajo eléctrico" to
-                    "Bajo eléctrico para interpretación de líneas de bajo.",
+                "Bajo eléctrico para interpretación de líneas de bajo.",
             "Teclado digital" to
-                    "Teclado digital para práctica y producción musical.",
+                "Teclado digital para práctica y producción musical.",
             "Piano digital" to
-                    "Piano digital con sonidos y funciones electrónicas.",
+                "Piano digital con sonidos y funciones electrónicas.",
             "Batería acústica" to
-                    "Batería acústica para práctica y presentaciones.",
+                "Batería acústica para práctica y presentaciones.",
             "Batería electrónica" to
-                    "Batería electrónica para práctica musical.",
+                "Batería electrónica para práctica musical.",
             "Violín" to
-                    "Violín para estudiantes y músicos.",
+                "Violín para estudiantes y músicos.",
             "Ukelele" to
-                    "Ukelele compacto para práctica y entretenimiento.",
+                "Ukelele compacto para práctica y entretenimiento.",
             "Saxofón" to
-                    "Saxofón para interpretación de música.",
+                "Saxofón para interpretación de música.",
             "Trompeta" to
-                    "Trompeta para interpretación musical.",
+                "Trompeta para interpretación musical.",
             "Flauta" to
-                    "Flauta para estudiantes y músicos.",
+                "Flauta para estudiantes y músicos.",
             "Micrófono" to
-                    "Micrófono para grabación y presentaciones.",
+                "Micrófono para grabación y presentaciones.",
             "Amplificador" to
-                    "Amplificador para instrumentos musicales.",
+                "Amplificador para instrumentos musicales.",
             "Audífonos" to
-                    "Audífonos para escuchar y monitorear audio.",
+                "Audífonos para escuchar y monitorear audio.",
             "Bocina" to
-                    "Bocina para reproducción de audio.",
+                "Bocina para reproducción de audio.",
             "Pedal de efectos" to
-                    "Pedal para agregar efectos a instrumentos eléctricos.",
+                "Pedal para agregar efectos a instrumentos eléctricos.",
             "Atril musical" to
-                    "Atril para colocar partituras durante la interpretación.",
+                "Atril para colocar partituras durante la interpretación.",
             "Cajón peruano" to
-                    "Instrumento de percusión de madera.",
+                "Instrumento de percusión de madera.",
             "Platillos" to
-                    "Platillos para batería y percusión."
+                "Platillos para batería y percusión."
         )
 
         for (i in 1..497) {
@@ -301,69 +340,90 @@ class StoreViewModel : ViewModel() {
     }
 
     fun alternarFavorito(instrumentoId: String) {
-        val favoritosActuales = _uiState.value.favoritos
-
-        val nuevosFavoritos =
-            if (instrumentoId in favoritosActuales) {
-                favoritosActuales - instrumentoId
+        viewModelScope.launch {
+            if (instrumentoId in uiState.value.favoritos) {
+                dao.deleteFavorite(instrumentoId)
             } else {
-                favoritosActuales + instrumentoId
-            }
-
-        _uiState.value = _uiState.value.copy(
-            favoritos = nuevosFavoritos
-        )
-    }
-
-    fun agregarProducto(instrumentoId: String, cantidad: Int = 1) {
-        val estadoActual = _uiState.value
-
-        val instrumento = estadoActual.instrumentos.find {
-            it.id == instrumentoId
-        } ?: return
-
-        when (
-            val resultado = agregarAlPedido(
-                estadoActual.pedido,
-                instrumento,
-                cantidad
-            )
-        ) {
-            is ResultadoPedido.Exito -> {
-                _uiState.value = estadoActual.copy(
-                    pedido = resultado.pedido,
-                    mensajePedido = null
-                )
-            }
-
-            is ResultadoPedido.Rechazado -> {
-                _uiState.value = estadoActual.copy(
-                    mensajePedido = resultado.motivo
+                dao.insertFavorite(
+                    FavoriteEntity(instrumentoId)
                 )
             }
         }
     }
 
-    fun disminuirProducto(instrumentoId: String) {
-        val estadoActual = _uiState.value
+    fun agregarProducto(
+        instrumentoId: String,
+        cantidad: Int = 1
+    ) {
+        viewModelScope.launch {
+            val estadoActual = uiState.value
 
-        _uiState.value = estadoActual.copy(
-            pedido = disminuirEnPedido(
+            val instrumento = estadoActual.instrumentos.find {
+                it.id == instrumentoId
+            } ?: return@launch
+
+            when (
+                val resultado = agregarAlPedido(
+                    estadoActual.pedido,
+                    instrumento,
+                    cantidad
+                )
+            ) {
+                is ResultadoPedido.Exito -> {
+                    val linea = resultado.pedido.find {
+                        it.instrumentoId == instrumentoId
+                    } ?: return@launch
+
+                    dao.insertOrderLine(
+                        OrderLineEntity(
+                            instrumentoId = linea.instrumentoId,
+                            cantidad = linea.cantidad
+                        )
+                    )
+
+                    _uiState.value = _uiState.value.copy(
+                        mensajePedido = null
+                    )
+                }
+
+                is ResultadoPedido.Rechazado -> {
+                    _uiState.value = _uiState.value.copy(
+                        mensajePedido = resultado.motivo
+                    )
+                }
+            }
+        }
+    }
+
+    fun disminuirProducto(instrumentoId: String) {
+        viewModelScope.launch {
+            val estadoActual = uiState.value
+
+            val nuevoPedido = disminuirEnPedido(
                 estadoActual.pedido,
                 instrumentoId
             )
-        )
+
+            val linea = nuevoPedido.find {
+                it.instrumentoId == instrumentoId
+            }
+
+            if (linea == null) {
+                dao.deleteOrderLine(instrumentoId)
+            } else {
+                dao.insertOrderLine(
+                    OrderLineEntity(
+                        instrumentoId = linea.instrumentoId,
+                        cantidad = linea.cantidad
+                    )
+                )
+            }
+        }
     }
 
     fun eliminarProducto(instrumentoId: String) {
-        val estadoActual = _uiState.value
-
-        _uiState.value = estadoActual.copy(
-            pedido = eliminarDelPedido(
-                estadoActual.pedido,
-                instrumentoId
-            )
-        )
+        viewModelScope.launch {
+            dao.deleteOrderLine(instrumentoId)
+        }
     }
 }
-
