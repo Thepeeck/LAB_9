@@ -50,6 +50,7 @@ fun TiendaApp(
         onBusinessNameChange = viewModel::onBusinessNameChange,
         onPaymentMethodChange = viewModel::onPaymentMethodChange,
         onConfirmOrder = viewModel::onConfirmOrder,
+        onCatalogOrderChange = viewModel::onCatalogOrderChange,
                 lastReceipt = lastReceipt
 
     )

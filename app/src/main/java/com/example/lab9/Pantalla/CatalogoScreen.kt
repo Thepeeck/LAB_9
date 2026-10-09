@@ -5,8 +5,10 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyGridState
@@ -20,6 +22,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
@@ -38,7 +41,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.lab9.Instrumento
 import kotlinx.coroutines.launch
-import androidx.compose.foundation.layout.height
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -48,7 +50,9 @@ fun CatalogoScreen(
     favoritos: Set<String>,
     gridState: LazyGridState,
     totalUnidadesPedido: Int,
+    catalogOrder: String,
     onQueryChange: (String) -> Unit,
+    onCatalogOrderChange: (String) -> Unit,
     onInstrumentoClick: (String) -> Unit,
     onFavoritoToggle: (String) -> Unit,
     onVerPedido: () -> Unit
@@ -134,6 +138,23 @@ fun CatalogoScreen(
                 },
                 singleLine = true
             )
+
+            Row(
+                modifier = Modifier.padding(bottom = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                FilterChip(
+                    selected = catalogOrder == "name",
+                    onClick = { onCatalogOrderChange("name") },
+                    label = { Text("Orden: por nombre") }
+                )
+
+                FilterChip(
+                    selected = catalogOrder == "price",
+                    onClick = { onCatalogOrderChange("price") },
+                    label = { Text("Orden: por precio") }
+                )
+            }
 
             Text(
                 text = "${filteredProducts.size} de " +

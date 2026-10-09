@@ -1,16 +1,20 @@
-
 package com.example.lab9
 
 import android.app.Application
+import androidx.datastore.preferences.core.edit
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlin.random.Random
 
 data class StoreUiState(
@@ -19,7 +23,8 @@ data class StoreUiState(
     val favoritos: Set<String> = emptySet(),
     val query: String = "",
     val pedido: List<LineaPedido> = emptyList(),
-    val mensajePedido: String? = null
+    val mensajePedido: String? = null,
+    val catalogOrder: String = "name"
 )
 
 class StoreViewModel(
@@ -29,6 +34,13 @@ class StoreViewModel(
     private val dao = StoreDatabase
         .getDatabase(application)
         .storeDao()
+
+    private val catalogOrder: Flow<String> = application.storeDataStore.data
+        .map { preferences ->
+            preferences[CATALOG_ORDER_KEY] ?: "name"
+        }
+
+    private val initialOrder: String = runBlocking { catalogOrder.first() }
 
     // Lab 11: estado del checkout.
     private val _checkoutUiState = MutableStateFlow(CheckoutUiState())
@@ -184,10 +196,18 @@ class StoreViewModel(
     val uiState: StateFlow<StoreUiState> = combine(
         _uiState,
         dao.observeFavorites(),
-        dao.observeOrderLines()
-    ) { state, favorites, orderLines ->
+        dao.observeOrderLines(),
+        catalogOrder
+    ) { state, favorites, orderLines, order ->
 
         state.copy(
+            instrumentos = ordenarInstrumentos(
+                state.instrumentos,
+                order
+            ),
+
+            catalogOrder = order,
+
             favoritos = favorites.map {
                 it.instrumentoId
             }.toSet(),
@@ -203,11 +223,25 @@ class StoreViewModel(
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000),
-        initialValue = _uiState.value
+        initialValue = _uiState.value.copy(
+            instrumentos = ordenarInstrumentos(
+                _uiState.value.instrumentos,
+                initialOrder
+            ),
+            catalogOrder = initialOrder
+        )
     )
 
     fun onQueryChange(query: String) {
         _uiState.value = _uiState.value.copy(query = query)
+    }
+
+    fun onCatalogOrderChange(order: String) {
+        viewModelScope.launch {
+            getApplication<Application>().storeDataStore.edit { preferences ->
+                preferences[CATALOG_ORDER_KEY] = order
+            }
+        }
     }
 
     private fun generarInstrumentos(): List<Instrumento> {
@@ -263,45 +297,45 @@ class StoreViewModel(
 
         val descripciones = mapOf(
             "Guitarra acústica" to
-                "Guitarra acústica para práctica y presentaciones.",
+                    "Guitarra acústica para práctica y presentaciones.",
             "Guitarra eléctrica" to
-                "Guitarra eléctrica para interpretación musical.",
+                    "Guitarra eléctrica para interpretación musical.",
             "Bajo eléctrico" to
-                "Bajo eléctrico para interpretación de líneas de bajo.",
+                    "Bajo eléctrico para interpretación de líneas de bajo.",
             "Teclado digital" to
-                "Teclado digital para práctica y producción musical.",
+                    "Teclado digital para práctica y producción musical.",
             "Piano digital" to
-                "Piano digital con sonidos y funciones electrónicas.",
+                    "Piano digital con sonidos y funciones electrónicas.",
             "Batería acústica" to
-                "Batería acústica para práctica y presentaciones.",
+                    "Batería acústica para práctica y presentaciones.",
             "Batería electrónica" to
-                "Batería electrónica para práctica musical.",
+                    "Batería electrónica para práctica musical.",
             "Violín" to
-                "Violín para estudiantes y músicos.",
+                    "Violín para estudiantes y músicos.",
             "Ukelele" to
-                "Ukelele compacto para práctica y entretenimiento.",
+                    "Ukelele compacto para práctica y entretenimiento.",
             "Saxofón" to
-                "Saxofón para interpretación de música.",
+                    "Saxofón para interpretación de música.",
             "Trompeta" to
-                "Trompeta para interpretación musical.",
+                    "Trompeta para interpretación musical.",
             "Flauta" to
-                "Flauta para estudiantes y músicos.",
+                    "Flauta para estudiantes y músicos.",
             "Micrófono" to
-                "Micrófono para grabación y presentaciones.",
+                    "Micrófono para grabación y presentaciones.",
             "Amplificador" to
-                "Amplificador para instrumentos musicales.",
+                    "Amplificador para instrumentos musicales.",
             "Audífonos" to
-                "Audífonos para escuchar y monitorear audio.",
+                    "Audífonos para escuchar y monitorear audio.",
             "Bocina" to
-                "Bocina para reproducción de audio.",
+                    "Bocina para reproducción de audio.",
             "Pedal de efectos" to
-                "Pedal para agregar efectos a instrumentos eléctricos.",
+                    "Pedal para agregar efectos a instrumentos eléctricos.",
             "Atril musical" to
-                "Atril para colocar partituras durante la interpretación.",
+                    "Atril para colocar partituras durante la interpretación.",
             "Cajón peruano" to
-                "Instrumento de percusión de madera.",
+                    "Instrumento de percusión de madera.",
             "Platillos" to
-                "Platillos para batería y percusión."
+                    "Platillos para batería y percusión."
         )
 
         for (i in 1..497) {

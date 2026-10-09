@@ -35,6 +35,7 @@ fun TiendaNavigation(
     onBusinessNameChange: (String) -> Unit,
     onPaymentMethodChange: (PaymentMethod) -> Unit,
     onConfirmOrder: () -> Unit,
+    onCatalogOrderChange: (String) -> Unit,
     lastReceipt: OrderReceipt?
 ) {
     val backStack = rememberNavBackStack(StoreNavKey.Catalog)
@@ -76,7 +77,9 @@ fun TiendaNavigation(
                             favoritos = currentUiState.favoritos,
                             gridState = catalogGridState,
                             totalUnidadesPedido = currentUiState.pedido.sumOf { it.cantidad },
+                            catalogOrder = currentUiState.catalogOrder,
                             onQueryChange = onQueryChange,
+                            onCatalogOrderChange = onCatalogOrderChange,
                             onInstrumentoClick = { instrumentoId ->
                                 backStack.add(
                                     StoreNavKey.Detail(
