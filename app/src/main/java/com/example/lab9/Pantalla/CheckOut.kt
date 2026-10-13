@@ -10,10 +10,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.derivedStateOf
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
@@ -26,6 +22,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.example.lab9.BillingType
 import com.example.lab9.CheckoutUiState
+import com.example.lab9.OrderSubmissionState
 
 @Composable
 fun ConditionalBillingFields(
@@ -36,8 +33,7 @@ fun ConditionalBillingFields(
     modifier: Modifier = Modifier
 ) {
     val focusManager = LocalFocusManager.current
-    val keyboardController =
-        LocalSoftwareKeyboardController.current
+    val keyboardController = LocalSoftwareKeyboardController.current
 
     AnimatedVisibility(
         visible = uiState.billingType == BillingType.NIT,
@@ -74,9 +70,7 @@ fun ConditionalBillingFields(
                 ),
                 keyboardActions = KeyboardActions(
                     onNext = {
-                        focusManager.moveFocus(
-                            FocusDirection.Next
-                        )
+                        focusManager.moveFocus(FocusDirection.Next)
                     }
                 )
             )
@@ -98,8 +92,7 @@ fun ConditionalBillingFields(
                     }
                 },
                 keyboardOptions = KeyboardOptions(
-                    capitalization =
-                        KeyboardCapitalization.Words,
+                    capitalization = KeyboardCapitalization.Words,
                     imeAction = ImeAction.Done
                 ),
                 keyboardActions = KeyboardActions(
@@ -117,18 +110,14 @@ fun ConditionalBillingFields(
 fun ReactiveConfirmButton(
     uiState: CheckoutUiState,
     orderUnits: Int,
+    submissionState: OrderSubmissionState,
     onConfirmOrder: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val currentUiState by rememberUpdatedState(uiState)
-    val currentOrderUnits by rememberUpdatedState(orderUnits)
-
-    val isConfirmEnabled by remember {
-        derivedStateOf {
-            currentUiState.isFormValid &&
-                currentOrderUnits > 0
-        }
-    }
+    val isConfirmEnabled =
+        uiState.isFormValid &&
+                orderUnits > 0 &&
+                submissionState != OrderSubmissionState.Loading
 
     Column(modifier = modifier) {
         Button(
@@ -136,10 +125,24 @@ fun ReactiveConfirmButton(
             enabled = isConfirmEnabled,
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text("Confirmar pedido")
+            Text(
+                if (submissionState == OrderSubmissionState.Loading) {
+                    "Enviando pedido…"
+                } else {
+                    "Confirmar pedido"
+                }
+            )
         }
 
-        if (!isConfirmEnabled) {
+        if (submissionState is OrderSubmissionState.Error) {
+            Text(
+                text = submissionState.message,
+                modifier = Modifier.padding(top = 8.dp)
+            )
+        } else if (
+            !isConfirmEnabled &&
+            submissionState != OrderSubmissionState.Loading
+        ) {
             Text(
                 text = if (orderUnits == 0) {
                     "Tu pedido no tiene productos."

@@ -15,6 +15,11 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.CancellationException
+import kotlinx.serialization.SerializationException
+import retrofit2.HttpException
+import java.io.IOException
+import java.time.Instant
 import kotlin.random.Random
 
 data class StoreUiState(
@@ -42,7 +47,6 @@ class StoreViewModel(
 
     private val initialOrder: String = runBlocking { catalogOrder.first() }
 
-    // Lab 11: estado del checkout.
     private val _checkoutUiState = MutableStateFlow(CheckoutUiState())
 
     val checkoutUiState: StateFlow<CheckoutUiState> =
@@ -53,7 +57,14 @@ class StoreViewModel(
     val lastReceipt: StateFlow<OrderReceipt?> =
         _lastReceipt.asStateFlow()
 
-    private var orderCounter = 0
+    private val _orderSubmissionState = MutableStateFlow<OrderSubmissionState>(OrderSubmissionState.Idle)
+    val orderSubmissionState: StateFlow<OrderSubmissionState> = _orderSubmissionState.asStateFlow()
+
+    fun onOrderConfirmationShown() {
+        if (_orderSubmissionState.value == OrderSubmissionState.Success) {
+            _orderSubmissionState.value = OrderSubmissionState.Idle
+        }
+    }
 
     fun onFullNameChange(value: String) {
         _checkoutUiState.value = _checkoutUiState.value.copy(
@@ -106,6 +117,7 @@ class StoreViewModel(
     }
 
     fun onConfirmOrder() {
+        if (_orderSubmissionState.value == OrderSubmissionState.Loading) return
         val checkout = _checkoutUiState.value
         val state = uiState.value
 
@@ -113,30 +125,57 @@ class StoreViewModel(
 
         if (!checkout.isFormValid || units <= 0) return
 
-        val total = calcularTotal(
-            pedido = state.pedido,
-            instrumentos = state.instrumentos
-        )
-
-        orderCounter++
-
-        _lastReceipt.value = OrderReceipt(
-            folio = "#ORD-${orderCounter.toString().padStart(5, '0')}",
-            customerName = checkout.fullName.trim(),
-            billingType = checkout.billingType,
-            paymentMethod = checkout.paymentMethod,
-            total = total
-        )
-
-        viewModelScope.launch {
-            dao.clearOrderLines()
+        val productsById = state.instrumentos.associateBy { it.id }
+        val lines = state.pedido.map { line ->
+            val product = productsById[line.instrumentoId] ?: return
+            OrderLineDto(
+                productId = line.instrumentoId,
+                name = product.nombre,
+                unitPrice = product.precio,
+                quantity = line.cantidad
+            )
         }
-
-        _uiState.value = _uiState.value.copy(
-            mensajePedido = null
+        val request = CreateOrderDto(
+            lines = lines,
+            total = calcularTotal(state.pedido, state.instrumentos),
+            createdAt = Instant.now().toString()
         )
 
-        _checkoutUiState.value = CheckoutUiState()
+        _orderSubmissionState.value = OrderSubmissionState.Loading
+        viewModelScope.launch {
+            val saved = try {
+                OrderApiClient.api.createOrder(request)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: IOException) {
+                _orderSubmissionState.value = OrderSubmissionState.Error(
+                    "No pudimos enviar tu pedido. Revisa tu conexión e intenta de nuevo."
+                )
+                return@launch
+            } catch (e: HttpException) {
+                _orderSubmissionState.value = OrderSubmissionState.Error(
+                    "El servidor no pudo atender la solicitud. Intenta más tarde."
+                )
+                return@launch
+            } catch (e: SerializationException) {
+                _orderSubmissionState.value = OrderSubmissionState.Error(
+                    "Recibimos una respuesta inesperada. Intenta más tarde."
+                )
+                return@launch
+            }
+
+            dao.clearOrderLines()
+            _lastReceipt.value = OrderReceipt(
+                folio = "#${saved.id}",
+                customerName = checkout.fullName.trim(),
+                billingType = checkout.billingType,
+                paymentMethod = checkout.paymentMethod,
+                total = saved.total
+            )
+            _uiState.value = _uiState.value.copy(mensajePedido = null)
+            _checkoutUiState.value = CheckoutUiState()
+            _orderSubmissionState.value = OrderSubmissionState.Success
+        }
     }
 
     private val productosOriginales = listOf(

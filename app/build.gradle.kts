@@ -70,4 +70,6 @@ dependencies {
     ksp(libs.androidx.room3.compiler)
     implementation(libs.androidx.sqlite.framework)
     implementation(libs.androidx.datastore.preferences)
+    implementation(libs.retrofit)
+    implementation(libs.retrofit.kotlinx.serialization)
 }

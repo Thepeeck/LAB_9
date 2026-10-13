@@ -34,6 +34,7 @@ fun TiendaApp(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val checkoutUiState by viewModel.checkoutUiState.collectAsStateWithLifecycle()
     val lastReceipt by viewModel.lastReceipt.collectAsStateWithLifecycle()
+    val orderSubmissionState by viewModel.orderSubmissionState.collectAsStateWithLifecycle()
 
     TiendaNavigation(
         uiState = uiState,
@@ -50,8 +51,9 @@ fun TiendaApp(
         onBusinessNameChange = viewModel::onBusinessNameChange,
         onPaymentMethodChange = viewModel::onPaymentMethodChange,
         onConfirmOrder = viewModel::onConfirmOrder,
+        orderSubmissionState = orderSubmissionState,
+        onOrderConfirmationShown = viewModel::onOrderConfirmationShown,
         onCatalogOrderChange = viewModel::onCatalogOrderChange,
-                lastReceipt = lastReceipt
-
+        lastReceipt = lastReceipt
     )
 }

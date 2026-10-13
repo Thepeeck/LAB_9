@@ -44,6 +44,7 @@ import com.example.lab9.BillingType
 import com.example.lab9.CheckoutUiState
 import com.example.lab9.Instrumento
 import com.example.lab9.LineaPedido
+import com.example.lab9.OrderSubmissionState
 import com.example.lab9.PaymentMethod
 import com.example.lab9.calcularSubtotal
 import com.example.lab9.calcularTotal
@@ -53,6 +54,7 @@ import java.util.Locale
 @Composable
 fun CheckoutScreen(
     uiState: CheckoutUiState,
+    submissionState: OrderSubmissionState,
     pedido: List<LineaPedido>,
     instrumentos: List<Instrumento>,
     onFullNameChange: (String) -> Unit,
@@ -149,8 +151,8 @@ fun CheckoutScreen(
 
                     Text(
                         text = "${instrumento.nombre} " +
-                            "(x${line.cantidad}) · " +
-                            "Subtotal: $$formattedSubtotal",
+                                "(x${line.cantidad}) · " +
+                                "Subtotal: $$formattedSubtotal",
                         modifier = Modifier.padding(top = 4.dp)
                     )
                 }
@@ -326,7 +328,7 @@ fun CheckoutScreen(
                             .selectable(
                                 selected =
                                     uiState.paymentMethod ==
-                                        method,
+                                            method,
                                 role = Role.RadioButton,
                                 onClick = {
                                     focusManager.clearFocus()
@@ -342,7 +344,7 @@ fun CheckoutScreen(
                         RadioButton(
                             selected =
                                 uiState.paymentMethod ==
-                                    method,
+                                        method,
                             onClick = null
                         )
 
@@ -356,6 +358,7 @@ fun CheckoutScreen(
             ReactiveConfirmButton(
                 uiState = uiState,
                 orderUnits = orderUnits,
+                submissionState = submissionState,
                 onConfirmOrder = onConfirmOrder
             )
 

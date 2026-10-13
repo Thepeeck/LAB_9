@@ -6,18 +6,18 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.ui.NavDisplay
 import com.example.lab9.Pantalla.CatalogoScreen
-import com.example.lab9.Pantalla.DetalleScreen
-import com.example.lab9.Pantalla.PerfilScreen
-import com.example.lab9.Pantalla.OrderScreen
-import androidx.compose.runtime.rememberUpdatedState
 import com.example.lab9.Pantalla.CheckoutScreen
+import com.example.lab9.Pantalla.DetalleScreen
 import com.example.lab9.Pantalla.OrderConfirmationScreen
-
+import com.example.lab9.Pantalla.OrderScreen
+import com.example.lab9.Pantalla.PerfilScreen
 
 @Composable
 fun TiendaNavigation(
@@ -35,6 +35,8 @@ fun TiendaNavigation(
     onBusinessNameChange: (String) -> Unit,
     onPaymentMethodChange: (PaymentMethod) -> Unit,
     onConfirmOrder: () -> Unit,
+    orderSubmissionState: OrderSubmissionState,
+    onOrderConfirmationShown: () -> Unit,
     onCatalogOrderChange: (String) -> Unit,
     lastReceipt: OrderReceipt?
 ) {
@@ -42,8 +44,6 @@ fun TiendaNavigation(
     val currentUiState by rememberUpdatedState(uiState)
     val currentCheckoutState by rememberUpdatedState(checkoutUiState)
     val currentReceipt by rememberUpdatedState(lastReceipt)
-
-    // Vive fuera de NavDisplay para conservar la posición al abrir un detalle.
     val catalogGridState = rememberLazyGridState()
 
     fun regresar() {
@@ -76,7 +76,8 @@ fun TiendaNavigation(
                             query = currentUiState.query,
                             favoritos = currentUiState.favoritos,
                             gridState = catalogGridState,
-                            totalUnidadesPedido = currentUiState.pedido.sumOf { it.cantidad },
+                            totalUnidadesPedido =
+                                currentUiState.pedido.sumOf { it.cantidad },
                             catalogOrder = currentUiState.catalogOrder,
                             onQueryChange = onQueryChange,
                             onCatalogOrderChange = onCatalogOrderChange,
@@ -95,17 +96,20 @@ fun TiendaNavigation(
                     }
 
                     is StoreNavKey.Detail -> {
-                        val instrumento = currentUiState.instrumentos.find {
-                            it.id == key.productId
-                        }
+                        val instrumento =
+                            currentUiState.instrumentos.find {
+                                it.id == key.productId
+                            }
 
                         if (instrumento != null) {
                             DetalleScreen(
                                 instrumento = instrumento,
-                                esFavorito = instrumento.id in currentUiState.favoritos,
-                                cantidadEnPedido = currentUiState.pedido.find{
-                                    it.instrumentoId == instrumento.id
-                                }?.cantidad ?: 0,
+                                esFavorito =
+                                    instrumento.id in currentUiState.favoritos,
+                                cantidadEnPedido =
+                                    currentUiState.pedido.find {
+                                        it.instrumentoId == instrumento.id
+                                    }?.cantidad ?: 0,
                                 mensajePedido = currentUiState.mensajePedido,
                                 onFavoritoToggle = onFavoritoToggle,
                                 onAgregarPedido = onAgregarProducto,
@@ -120,7 +124,6 @@ fun TiendaNavigation(
                                     regresar()
                                 }
                             )
-
                         }
                     }
 
@@ -148,12 +151,28 @@ fun TiendaNavigation(
                             onContinuarCheckout = {
                                 backStack.add(StoreNavKey.Checkout)
                             },
-                            onBack = { regresar() }
+                            onBack = {
+                                regresar()
+                            }
                         )
                     }
+
                     StoreNavKey.Checkout -> {
+                        LaunchedEffect(orderSubmissionState) {
+                            if (
+                                orderSubmissionState ==
+                                OrderSubmissionState.Success
+                            ) {
+                                onOrderConfirmationShown()
+                                backStack.add(
+                                    StoreNavKey.OrderConfirmation
+                                )
+                            }
+                        }
+
                         CheckoutScreen(
                             uiState = currentCheckoutState,
+                            submissionState = orderSubmissionState,
                             pedido = currentUiState.pedido,
                             instrumentos = currentUiState.instrumentos,
                             onFullNameChange = onFullNameChange,
@@ -162,11 +181,10 @@ fun TiendaNavigation(
                             onNitChange = onNitChange,
                             onBusinessNameChange = onBusinessNameChange,
                             onPaymentMethodChange = onPaymentMethodChange,
-                            onConfirmOrder = {
-                                onConfirmOrder()
-                                backStack.add(StoreNavKey.OrderConfirmation)
-                            },
-                            onBack = { regresar() }
+                            onConfirmOrder = onConfirmOrder,
+                            onBack = {
+                                regresar()
+                            }
                         )
                     }
 
