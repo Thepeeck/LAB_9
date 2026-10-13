@@ -56,6 +56,7 @@ fun CatalogoScreen(
     onInstrumentoClick: (String) -> Unit,
     onFavoritoToggle: (String) -> Unit,
     onVerPedido: () -> Unit
+    onVerMisPedidos: () -> Unit
 ) {
     val filteredProducts = remember(instrumentos, query) {
         val normalizedQuery = query.trim()
@@ -91,6 +92,10 @@ fun CatalogoScreen(
                     TextButton(onClick = onVerPedido) {
                         Text("Pedido · $totalUnidadesPedido")
                     }
+                 TextButton(onClick = onVerPedido) {
+        Text("Pedido · $totalUnidadesPedido")
+    }
+                
                 }
             )
         },
