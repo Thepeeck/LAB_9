@@ -1,3 +1,4 @@
+
 package com.example.lab9
 
 import androidx.navigation3.runtime.NavKey
@@ -12,11 +13,18 @@ sealed interface StoreNavKey : NavKey {
     @Serializable
     data object Order : StoreNavKey
 
-
     @Serializable
     data object Checkout : StoreNavKey
+
     @Serializable
     data object OrderConfirmation : StoreNavKey
+
+    @Serializable
+    data object Orders : StoreNavKey
+
+    @Serializable
+    data class OrderDetail(val orderId: String) : StoreNavKey
+
     @Serializable
     data class Detail(val productId: String) : StoreNavKey
 
