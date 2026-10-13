@@ -1,3 +1,4 @@
+
 package com.example.lab9
 
 import android.os.Bundle
@@ -13,6 +14,7 @@ import com.example.lab9.ui.theme.LAB9Theme
 class MainActivity : ComponentActivity() {
 
     private val storeViewModel: StoreViewModel by viewModels()
+    private val ordersViewModel: OrdersViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -21,7 +23,10 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             LAB9Theme {
-                TiendaApp(viewModel = storeViewModel)
+                TiendaApp(
+                    viewModel = storeViewModel,
+                    ordersViewModel = ordersViewModel
+                )
             }
         }
     }
@@ -29,12 +34,15 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun TiendaApp(
-    viewModel: StoreViewModel
+    viewModel: StoreViewModel,
+    ordersViewModel: OrdersViewModel
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val checkoutUiState by viewModel.checkoutUiState.collectAsStateWithLifecycle()
     val lastReceipt by viewModel.lastReceipt.collectAsStateWithLifecycle()
     val orderSubmissionState by viewModel.orderSubmissionState.collectAsStateWithLifecycle()
+    val ordersUiState by ordersViewModel.ordersUiState.collectAsStateWithLifecycle()
+    val orderDetailUiState by ordersViewModel.detailUiState.collectAsStateWithLifecycle()
 
     TiendaNavigation(
         uiState = uiState,
@@ -54,6 +62,10 @@ fun TiendaApp(
         orderSubmissionState = orderSubmissionState,
         onOrderConfirmationShown = viewModel::onOrderConfirmationShown,
         onCatalogOrderChange = viewModel::onCatalogOrderChange,
-        lastReceipt = lastReceipt
+        lastReceipt = lastReceipt,
+        ordersUiState = ordersUiState,
+        orderDetailUiState = orderDetailUiState,
+        onLoadOrders = ordersViewModel::loadOrders,
+        onLoadOrderDetail = ordersViewModel::loadOrder
     )
 }
