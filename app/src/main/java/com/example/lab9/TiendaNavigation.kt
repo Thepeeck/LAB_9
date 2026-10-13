@@ -1,3 +1,4 @@
+
 package com.example.lab9
 
 import androidx.activity.compose.BackHandler
@@ -16,7 +17,9 @@ import com.example.lab9.Pantalla.CatalogoScreen
 import com.example.lab9.Pantalla.CheckoutScreen
 import com.example.lab9.Pantalla.DetalleScreen
 import com.example.lab9.Pantalla.OrderConfirmationScreen
+import com.example.lab9.Pantalla.OrderDetailScreen
 import com.example.lab9.Pantalla.OrderScreen
+import com.example.lab9.Pantalla.OrdersScreen
 import com.example.lab9.Pantalla.PerfilScreen
 
 @Composable
@@ -38,7 +41,11 @@ fun TiendaNavigation(
     orderSubmissionState: OrderSubmissionState,
     onOrderConfirmationShown: () -> Unit,
     onCatalogOrderChange: (String) -> Unit,
-    lastReceipt: OrderReceipt?
+    lastReceipt: OrderReceipt?,
+    ordersUiState: OrdersUiState,
+    orderDetailUiState: OrderDetailUiState,
+    onLoadOrders: (Boolean) -> Unit,
+    onLoadOrderDetail: (String, Boolean) -> Unit
 ) {
     val backStack = rememberNavBackStack(StoreNavKey.Catalog)
     val currentUiState by rememberUpdatedState(uiState)
@@ -91,6 +98,10 @@ fun TiendaNavigation(
                             onFavoritoToggle = onFavoritoToggle,
                             onVerPedido = {
                                 backStack.add(StoreNavKey.Order)
+                            },
+                            onVerMisPedidos = {
+                                onLoadOrders(true)
+                                backStack.add(StoreNavKey.Orders)
                             }
                         )
                     }
@@ -120,9 +131,7 @@ fun TiendaNavigation(
                                         )
                                     )
                                 },
-                                onBack = {
-                                    regresar()
-                                }
+                                onBack = { regresar() }
                             )
                         }
                     }
@@ -135,9 +144,7 @@ fun TiendaNavigation(
                         if (marca != null) {
                             PerfilScreen(
                                 marca = marca,
-                                onBack = {
-                                    regresar()
-                                }
+                                onBack = { regresar() }
                             )
                         }
                     }
@@ -151,9 +158,7 @@ fun TiendaNavigation(
                             onContinuarCheckout = {
                                 backStack.add(StoreNavKey.Checkout)
                             },
-                            onBack = {
-                                regresar()
-                            }
+                            onBack = { regresar() }
                         )
                     }
 
@@ -182,9 +187,7 @@ fun TiendaNavigation(
                             onBusinessNameChange = onBusinessNameChange,
                             onPaymentMethodChange = onPaymentMethodChange,
                             onConfirmOrder = onConfirmOrder,
-                            onBack = {
-                                regresar()
-                            }
+                            onBack = { regresar() }
                         )
                     }
 
@@ -199,6 +202,35 @@ fun TiendaNavigation(
                                 }
                             )
                         }
+                    }
+
+                    StoreNavKey.Orders -> {
+                        OrdersScreen(
+                            state = ordersUiState,
+                            onOrderClick = { id ->
+                                onLoadOrderDetail(id, true)
+                                backStack.add(
+                                    StoreNavKey.OrderDetail(id)
+                                )
+                            },
+                            onRetry = { onLoadOrders(true) },
+                            onBack = { regresar() },
+                            onCatalog = {
+                                while (backStack.size > 1) {
+                                    backStack.removeLastOrNull()
+                                }
+                            }
+                        )
+                    }
+
+                    is StoreNavKey.OrderDetail -> {
+                        OrderDetailScreen(
+                            state = orderDetailUiState,
+                            onBack = { regresar() },
+                            onRetry = {
+                                onLoadOrderDetail(key.orderId, true)
+                            }
+                        )
                     }
                 }
             }
