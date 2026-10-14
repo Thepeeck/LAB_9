@@ -1,4 +1,3 @@
-
 package com.example.lab9
 
 import androidx.activity.compose.BackHandler
@@ -51,6 +50,9 @@ fun TiendaNavigation(
     val currentUiState by rememberUpdatedState(uiState)
     val currentCheckoutState by rememberUpdatedState(checkoutUiState)
     val currentReceipt by rememberUpdatedState(lastReceipt)
+    val currentSubmissionState by rememberUpdatedState(orderSubmissionState)
+    val currentOrdersState by rememberUpdatedState(ordersUiState)
+    val currentOrderDetailState by rememberUpdatedState(orderDetailUiState)
     val catalogGridState = rememberLazyGridState()
 
     fun regresar() {
@@ -163,9 +165,9 @@ fun TiendaNavigation(
                     }
 
                     StoreNavKey.Checkout -> {
-                        LaunchedEffect(orderSubmissionState) {
+                        LaunchedEffect(currentSubmissionState) {
                             if (
-                                orderSubmissionState ==
+                                currentSubmissionState ==
                                 OrderSubmissionState.Success
                             ) {
                                 onOrderConfirmationShown()
@@ -177,7 +179,7 @@ fun TiendaNavigation(
 
                         CheckoutScreen(
                             uiState = currentCheckoutState,
-                            submissionState = orderSubmissionState,
+                            submissionState = currentSubmissionState,
                             pedido = currentUiState.pedido,
                             instrumentos = currentUiState.instrumentos,
                             onFullNameChange = onFullNameChange,
@@ -206,7 +208,7 @@ fun TiendaNavigation(
 
                     StoreNavKey.Orders -> {
                         OrdersScreen(
-                            state = ordersUiState,
+                            state = currentOrdersState,
                             onOrderClick = { id ->
                                 onLoadOrderDetail(id, true)
                                 backStack.add(
@@ -225,7 +227,7 @@ fun TiendaNavigation(
 
                     is StoreNavKey.OrderDetail -> {
                         OrderDetailScreen(
-                            state = orderDetailUiState,
+                            state = currentOrderDetailState,
                             onBack = { regresar() },
                             onRetry = {
                                 onLoadOrderDetail(key.orderId, true)
