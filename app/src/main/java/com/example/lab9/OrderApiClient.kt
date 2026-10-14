@@ -7,7 +7,7 @@ import retrofit2.converter.kotlinx.serialization.asConverterFactory
 
 object OrderApiClient {
 
-    private const val BASE_URL = "https://6acd779ab406cb8ec0c71c1a.mockapi.io/api/v1/"
+    private const val BASE_URL = "https://6aced5a0f338359cf1c3b3c9.mockapi.io/api/v1/"
 
     private val json = Json {
         ignoreUnknownKeys = true
