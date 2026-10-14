@@ -55,7 +55,7 @@ fun CatalogoScreen(
     onCatalogOrderChange: (String) -> Unit,
     onInstrumentoClick: (String) -> Unit,
     onFavoritoToggle: (String) -> Unit,
-    onVerPedido: () -> Unit
+    onVerPedido: () -> Unit,
     onVerMisPedidos: () -> Unit
 ) {
     val filteredProducts = remember(instrumentos, query) {
@@ -92,8 +92,9 @@ fun CatalogoScreen(
                     TextButton(onClick = onVerPedido) {
                         Text("Pedido · $totalUnidadesPedido")
                     }
-                 TextButton(onClick = onVerPedido) {
-        Text("Pedido · $totalUnidadesPedido")
+                    TextButton(onClick = onVerMisPedidos) {
+                        Text("Mis pedidos")
+
     }
                 
                 }
