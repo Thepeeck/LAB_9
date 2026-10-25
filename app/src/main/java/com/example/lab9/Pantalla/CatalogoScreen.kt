@@ -40,9 +40,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.lab9.Instrumento
-import com.example.lab9.seedCatalog
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -97,26 +94,6 @@ fun CatalogoScreen(
                     }
                     TextButton(onClick = onVerMisPedidos) {
                         Text("Mis pedidos")
-                    }
-                    TextButton(
-                        onClick = {
-                            CoroutineScope(Dispatchers.IO).launch {
-                                try {
-                                    seedCatalog(instrumentos)
-                                    Log.d(
-                                        "CatalogSeeder",
-                                        "Carga completada: ${instrumentos.size} productos"
-                                    )
-                                } catch (e: Exception) {
-                                    Log.d(
-                                        "CatalogSeeder",
-                                        "Error en la carga: ${e.message}"
-                                    )
-                                }
-                            }
-                        }
-                    ) {
-                        Text("Cargar")
                     }
                 }
             )
