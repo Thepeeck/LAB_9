@@ -1,6 +1,5 @@
 package com.example.lab9.Pantalla
 
-import android.util.Log
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -31,7 +30,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -92,6 +90,7 @@ fun CatalogoScreen(
                     TextButton(onClick = onVerPedido) {
                         Text("Pedido · $totalUnidadesPedido")
                     }
+
                     TextButton(onClick = onVerMisPedidos) {
                         Text("Mis pedidos")
                     }
@@ -149,14 +148,22 @@ fun CatalogoScreen(
             ) {
                 FilterChip(
                     selected = catalogOrder == "name",
-                    onClick = { onCatalogOrderChange("name") },
-                    label = { Text("Orden: por nombre") }
+                    onClick = {
+                        onCatalogOrderChange("name")
+                    },
+                    label = {
+                        Text("Orden: por nombre")
+                    }
                 )
 
                 FilterChip(
                     selected = catalogOrder == "price",
-                    onClick = { onCatalogOrderChange("price") },
-                    label = { Text("Orden: por precio") }
+                    onClick = {
+                        onCatalogOrderChange("price")
+                    },
+                    label = {
+                        Text("Orden: por precio")
+                    }
                 )
             }
 
@@ -202,20 +209,6 @@ fun CatalogoScreen(
                             instrumento.id
                         }
                     ) { instrumento ->
-                        DisposableEffect(instrumento.id) {
-                            Log.d(
-                                "CatalogoProbe",
-                                "Entró: ${instrumento.id}"
-                            )
-
-                            onDispose {
-                                Log.d(
-                                    "CatalogoProbe",
-                                    "Salió: ${instrumento.id}"
-                                )
-                            }
-                        }
-
                         Card(
                             modifier = Modifier
                                 .padding(4.dp)

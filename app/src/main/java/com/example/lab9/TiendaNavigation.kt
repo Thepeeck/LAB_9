@@ -12,6 +12,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.ui.NavDisplay
+import com.example.lab9.Pantalla.CatalogStateContent
 import com.example.lab9.Pantalla.CatalogoScreen
 import com.example.lab9.Pantalla.CheckoutScreen
 import com.example.lab9.Pantalla.DetalleScreen
@@ -44,25 +45,34 @@ fun TiendaNavigation(
     ordersUiState: OrdersUiState,
     orderDetailUiState: OrderDetailUiState,
     onLoadOrders: (Boolean) -> Unit,
-    onLoadOrderDetail: (String, Boolean) -> Unit
+    onLoadOrderDetail: (String, Boolean) -> Unit,
+    onRetryCatalog: () -> Unit
 ) {
     val backStack = rememberNavBackStack(StoreNavKey.Catalog)
+
     val currentUiState by rememberUpdatedState(uiState)
     val currentCheckoutState by rememberUpdatedState(checkoutUiState)
     val currentReceipt by rememberUpdatedState(lastReceipt)
     val currentSubmissionState by rememberUpdatedState(orderSubmissionState)
     val currentOrdersState by rememberUpdatedState(ordersUiState)
     val currentOrderDetailState by rememberUpdatedState(orderDetailUiState)
+
     val catalogGridState = rememberLazyGridState()
 
-    fun regresar() {
+    fun navigateBack() {
         if (backStack.size > 1) {
             backStack.removeLastOrNull()
         }
     }
 
+    fun returnToCatalog() {
+        while (backStack.size > 1) {
+            backStack.removeLastOrNull()
+        }
+    }
+
     BackHandler(enabled = backStack.size > 1) {
-        regresar()
+        navigateBack()
     }
 
     NavDisplay(
@@ -80,73 +90,84 @@ fun TiendaNavigation(
             NavEntry(key) {
                 when (key) {
                     StoreNavKey.Catalog -> {
-                        CatalogoScreen(
-                            instrumentos = currentUiState.instrumentos,
-                            query = currentUiState.query,
-                            favoritos = currentUiState.favoritos,
-                            gridState = catalogGridState,
-                            totalUnidadesPedido =
-                                currentUiState.pedido.sumOf { it.cantidad },
-                            catalogOrder = currentUiState.catalogOrder,
-                            onQueryChange = onQueryChange,
-                            onCatalogOrderChange = onCatalogOrderChange,
-                            onInstrumentoClick = { instrumentoId ->
-                                backStack.add(
-                                    StoreNavKey.Detail(
-                                        productId = instrumentoId
+                        CatalogStateContent(
+                            state = currentUiState.catalogState,
+                            onRetry = onRetryCatalog
+                        ) {
+                            CatalogoScreen(
+                                instrumentos = currentUiState.instrumentos,
+                                query = currentUiState.query,
+                                favoritos = currentUiState.favoritos,
+                                gridState = catalogGridState,
+                                totalUnidadesPedido =
+                                    currentUiState.pedido.sumOf { line ->
+                                        line.cantidad
+                                    },
+                                catalogOrder = currentUiState.catalogOrder,
+                                onQueryChange = onQueryChange,
+                                onCatalogOrderChange = onCatalogOrderChange,
+                                onInstrumentoClick = { productId ->
+                                    backStack.add(
+                                        StoreNavKey.Detail(
+                                            productId = productId
+                                        )
                                     )
-                                )
-                            },
-                            onFavoritoToggle = onFavoritoToggle,
-                            onVerPedido = {
-                                backStack.add(StoreNavKey.Order)
-                            },
-                            onVerMisPedidos = {
-                                onLoadOrders(true)
-                                backStack.add(StoreNavKey.Orders)
-                            }
-                        )
+                                },
+                                onFavoritoToggle = onFavoritoToggle,
+                                onVerPedido = {
+                                    backStack.add(StoreNavKey.Order)
+                                },
+                                onVerMisPedidos = {
+                                    onLoadOrders(true)
+                                    backStack.add(StoreNavKey.Orders)
+                                }
+                            )
+                        }
                     }
 
                     is StoreNavKey.Detail -> {
-                        val instrumento =
-                            currentUiState.instrumentos.find {
-                                it.id == key.productId
+                        val instrument =
+                            currentUiState.instrumentos.find { product ->
+                                product.id == key.productId
                             }
 
-                        if (instrumento != null) {
+                        if (instrument != null) {
                             DetalleScreen(
-                                instrumento = instrumento,
+                                instrumento = instrument,
                                 esFavorito =
-                                    instrumento.id in currentUiState.favoritos,
+                                    instrument.id in currentUiState.favoritos,
                                 cantidadEnPedido =
-                                    currentUiState.pedido.find {
-                                        it.instrumentoId == instrumento.id
+                                    currentUiState.pedido.find { line ->
+                                        line.instrumentoId == instrument.id
                                     }?.cantidad ?: 0,
                                 mensajePedido = currentUiState.mensajePedido,
                                 onFavoritoToggle = onFavoritoToggle,
                                 onAgregarPedido = onAgregarProducto,
-                                onVerPerfil = { marcaId ->
+                                onVerPerfil = { brandId ->
                                     backStack.add(
                                         StoreNavKey.Profile(
-                                            profileId = marcaId
+                                            profileId = brandId
                                         )
                                     )
                                 },
-                                onBack = { regresar() }
+                                onBack = {
+                                    navigateBack()
+                                }
                             )
                         }
                     }
 
                     is StoreNavKey.Profile -> {
-                        val marca = currentUiState.marcas.find {
-                            it.id == key.profileId
+                        val brand = currentUiState.marcas.find { item ->
+                            item.id == key.profileId
                         }
 
-                        if (marca != null) {
+                        if (brand != null) {
                             PerfilScreen(
-                                marca = marca,
-                                onBack = { regresar() }
+                                marca = brand,
+                                onBack = {
+                                    navigateBack()
+                                }
                             )
                         }
                     }
@@ -160,7 +181,9 @@ fun TiendaNavigation(
                             onContinuarCheckout = {
                                 backStack.add(StoreNavKey.Checkout)
                             },
-                            onBack = { regresar() }
+                            onBack = {
+                                navigateBack()
+                            }
                         )
                     }
 
@@ -171,6 +194,7 @@ fun TiendaNavigation(
                                 OrderSubmissionState.Success
                             ) {
                                 onOrderConfirmationShown()
+
                                 backStack.add(
                                     StoreNavKey.OrderConfirmation
                                 )
@@ -189,7 +213,9 @@ fun TiendaNavigation(
                             onBusinessNameChange = onBusinessNameChange,
                             onPaymentMethodChange = onPaymentMethodChange,
                             onConfirmOrder = onConfirmOrder,
-                            onBack = { regresar() }
+                            onBack = {
+                                navigateBack()
+                            }
                         )
                     }
 
@@ -198,9 +224,7 @@ fun TiendaNavigation(
                             OrderConfirmationScreen(
                                 receipt = receipt,
                                 onBackToCatalog = {
-                                    while (backStack.size > 1) {
-                                        backStack.removeLastOrNull()
-                                    }
+                                    returnToCatalog()
                                 }
                             )
                         }
@@ -209,18 +233,21 @@ fun TiendaNavigation(
                     StoreNavKey.Orders -> {
                         OrdersScreen(
                             state = currentOrdersState,
-                            onOrderClick = { id ->
-                                onLoadOrderDetail(id, true)
+                            onOrderClick = { orderId ->
+                                onLoadOrderDetail(orderId, true)
+
                                 backStack.add(
-                                    StoreNavKey.OrderDetail(id)
+                                    StoreNavKey.OrderDetail(orderId)
                                 )
                             },
-                            onRetry = { onLoadOrders(true) },
-                            onBack = { regresar() },
+                            onRetry = {
+                                onLoadOrders(true)
+                            },
+                            onBack = {
+                                navigateBack()
+                            },
                             onCatalog = {
-                                while (backStack.size > 1) {
-                                    backStack.removeLastOrNull()
-                                }
+                                returnToCatalog()
                             }
                         )
                     }
@@ -228,7 +255,9 @@ fun TiendaNavigation(
                     is StoreNavKey.OrderDetail -> {
                         OrderDetailScreen(
                             state = currentOrderDetailState,
-                            onBack = { regresar() },
+                            onBack = {
+                                navigateBack()
+                            },
                             onRetry = {
                                 onLoadOrderDetail(key.orderId, true)
                             }

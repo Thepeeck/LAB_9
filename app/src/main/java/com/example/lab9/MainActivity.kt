@@ -1,4 +1,3 @@
-
 package com.example.lab9
 
 import android.os.Bundle
@@ -13,8 +12,13 @@ import com.example.lab9.ui.theme.LAB9Theme
 
 class MainActivity : ComponentActivity() {
 
-    private val storeViewModel: StoreViewModel by viewModels()
-    private val ordersViewModel: OrdersViewModel by viewModels()
+    private val storeViewModel: StoreViewModel by viewModels {
+        StoreViewModel.Factory
+    }
+
+    private val ordersViewModel: OrdersViewModel by viewModels {
+        OrdersViewModel.Factory
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -66,6 +70,7 @@ fun TiendaApp(
         ordersUiState = ordersUiState,
         orderDetailUiState = orderDetailUiState,
         onLoadOrders = ordersViewModel::loadOrders,
-        onLoadOrderDetail = ordersViewModel::loadOrder
+        onLoadOrderDetail = ordersViewModel::loadOrder,
+        onRetryCatalog = viewModel::loadCatalog
     )
 }
