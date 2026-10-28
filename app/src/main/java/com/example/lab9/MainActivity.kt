@@ -48,6 +48,9 @@ fun TiendaApp(
     val ordersUiState by ordersViewModel.ordersUiState.collectAsStateWithLifecycle()
     val orderDetailUiState by ordersViewModel.detailUiState.collectAsStateWithLifecycle()
 
+    val isReserving by viewModel.isReserving.collectAsStateWithLifecycle()
+    val concurrencyTestResult by viewModel.concurrencyTestResult.collectAsStateWithLifecycle()
+
     TiendaNavigation(
         uiState = uiState,
         onQueryChange = viewModel::onQueryChange,
@@ -71,6 +74,9 @@ fun TiendaApp(
         orderDetailUiState = orderDetailUiState,
         onLoadOrders = ordersViewModel::loadOrders,
         onLoadOrderDetail = ordersViewModel::loadOrder,
-        onRetryCatalog = viewModel::loadCatalog
+        onRetryCatalog = viewModel::loadCatalog,
+        isReserving = isReserving,
+        concurrencyTestResult = concurrencyTestResult,
+        onConcurrencyTest = viewModel::onConcurrencyTest
     )
 }
