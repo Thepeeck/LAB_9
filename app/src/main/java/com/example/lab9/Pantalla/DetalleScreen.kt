@@ -10,6 +10,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -23,9 +24,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import com.example.lab9.Instrumento
-import androidx.compose.material3.Button
 import androidx.compose.ui.unit.dp
+import com.example.lab9.Instrumento
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -37,9 +37,14 @@ fun DetalleScreen(
     onFavoritoToggle: (String) -> Unit,
     onAgregarPedido: (String) -> Unit,
     onVerPerfil: (String) -> Unit,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    isReserving: Boolean = false,
+    concurrencyTestResult: String? = null,
+    onConcurrencyTest: (String, Int) -> Unit = { _, _ -> }
 ) {
-    var mostrarFichaTecnica by remember { mutableStateOf(false) }
+    var mostrarFichaTecnica by remember {
+        mutableStateOf(false)
+    }
 
     Scaffold(
         topBar = {
@@ -47,7 +52,10 @@ fun DetalleScreen(
                 title = { Text(instrumento.nombre) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Filled.ArrowBack, contentDescription = "Regresar")
+                        Icon(
+                            Icons.Filled.ArrowBack,
+                            contentDescription = "Regresar"
+                        )
                     }
                 }
             )
@@ -69,32 +77,92 @@ fun DetalleScreen(
             Text("$${instrumento.precio}")
             Text(instrumento.descripcion)
 
-            Text("${instrumento.stock} disponibles" + if (cantidadEnPedido > 0) " · $cantidadEnPedido en el pedido" else "")
+            Text(
+                if (instrumento.stock == 0) {
+                    "Agotado"
+                } else {
+                    "${instrumento.stock} disponibles" +
+                        if (cantidadEnPedido > 0) {
+                            " · $cantidadEnPedido en el pedido"
+                        } else {
+                            ""
+                        }
+                }
+            )
 
-            Button(onClick = { onAgregarPedido(instrumento.id) }) {
-                Text("Agregar al pedido")
+            Button(
+                onClick = {
+                    onAgregarPedido(instrumento.id)
+                },
+                enabled = instrumento.stock > 0 && !isReserving
+            ) {
+                Text(
+                    when {
+                        isReserving -> "Reservando..."
+                        instrumento.stock == 0 -> "Agotado"
+                        else -> "Agregar al pedido"
+                    }
+                )
+            }
+
+            TextButton(
+                onClick = {
+                    onConcurrencyTest(instrumento.id, 20)
+                },
+                enabled = !isReserving
+            ) {
+                Text("Prueba de concurrencia · 20 intentos")
+            }
+
+            if (concurrencyTestResult != null) {
+                Text(concurrencyTestResult)
             }
 
             if (mensajePedido != null) {
                 Text(mensajePedido)
             }
 
-            IconButton(onClick = { onFavoritoToggle(instrumento.id) }) {
+            IconButton(
+                onClick = {
+                    onFavoritoToggle(instrumento.id)
+                }
+            ) {
                 Icon(
-                    imageVector = if (esFavorito) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
+                    imageVector = if (esFavorito) {
+                        Icons.Filled.Favorite
+                    } else {
+                        Icons.Filled.FavoriteBorder
+                    },
                     contentDescription = "Favorito"
                 )
             }
 
-            TextButton(onClick = { mostrarFichaTecnica = !mostrarFichaTecnica }) {
-                Text(if (mostrarFichaTecnica) "Ocultar ficha técnica" else "Ver más")
+            TextButton(
+                onClick = {
+                    mostrarFichaTecnica = !mostrarFichaTecnica
+                }
+            ) {
+                Text(
+                    if (mostrarFichaTecnica) {
+                        "Ocultar ficha técnica"
+                    } else {
+                        "Ver más"
+                    }
+                )
             }
 
             if (mostrarFichaTecnica) {
-                Text("Ficha técnica de ${instrumento.nombre}: ${instrumento.descripcion}")
+                Text(
+                    "Ficha técnica de ${instrumento.nombre}: " +
+                        instrumento.descripcion
+                )
             }
 
-            TextButton(onClick = { onVerPerfil(instrumento.marcaId) }) {
+            TextButton(
+                onClick = {
+                    onVerPerfil(instrumento.marcaId)
+                }
+            ) {
                 Text("Ver marca")
             }
         }
