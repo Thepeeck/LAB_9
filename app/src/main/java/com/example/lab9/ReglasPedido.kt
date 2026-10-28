@@ -11,14 +11,19 @@ fun agregarAlPedido(
     cantidad: Int = 1
 ): ResultadoPedido {
     if (cantidad <= 0) {
-        return ResultadoPedido.Rechazado("La cantidad debe ser mayor a cero.")
+        return ResultadoPedido.Rechazado(
+            "La cantidad debe ser mayor a cero."
+        )
     }
 
-    val lineaActual = pedido.find { it.instrumentoId == instrumento.id }
+    val lineaActual = pedido.find {
+        it.instrumentoId == instrumento.id
+    }
+
     val cantidadActual = lineaActual?.cantidad ?: 0
     val nuevaCantidad = cantidadActual + cantidad
 
-    if (nuevaCantidad > instrumento.stock) {
+    if (cantidad > instrumento.stock) {
         return ResultadoPedido.Rechazado(
             "Solo hay ${instrumento.stock} unidades disponibles."
         )
@@ -37,19 +42,22 @@ fun agregarAlPedido(
     }
 
     return ResultadoPedido.Exito(nuevoPedido)
-} // <-- ESTE cierre le faltaba a agregarAlPedido
+}
 
 fun disminuirEnPedido(
     pedido: List<LineaPedido>,
     instrumentoId: String
 ): List<LineaPedido> {
-    val lineaActual = pedido.find { it.instrumentoId == instrumentoId }
-        ?: return pedido
+    val lineaActual = pedido.find {
+        it.instrumentoId == instrumentoId
+    } ?: return pedido
 
     val nuevaCantidad = lineaActual.cantidad - 1
 
     return if (nuevaCantidad <= 0) {
-        pedido.filterNot { it.instrumentoId == instrumentoId }
+        pedido.filterNot {
+            it.instrumentoId == instrumentoId
+        }
     } else {
         pedido.map {
             if (it.instrumentoId == instrumentoId) {
@@ -65,16 +73,26 @@ fun eliminarDelPedido(
     pedido: List<LineaPedido>,
     instrumentoId: String
 ): List<LineaPedido> {
-    return pedido.filterNot { it.instrumentoId == instrumentoId }
+    return pedido.filterNot {
+        it.instrumentoId == instrumentoId
+    }
 }
 
-fun calcularSubtotal(linea: LineaPedido, instrumentos: List<Instrumento>): Double {
-    val instrumento = instrumentos.find { it.id == linea.instrumentoId }
-        ?: return 0.0
+fun calcularSubtotal(
+    linea: LineaPedido,
+    instrumentos: List<Instrumento>
+): Double {
+    val instrumento = instrumentos.find {
+        it.id == linea.instrumentoId
+    } ?: return 0.0
+
     return instrumento.precio * linea.cantidad
 }
 
-fun calcularTotal(pedido: List<LineaPedido>, instrumentos: List<Instrumento>): Double {
+fun calcularTotal(
+    pedido: List<LineaPedido>,
+    instrumentos: List<Instrumento>
+): Double {
     return pedido.sumOf { linea ->
         calcularSubtotal(linea, instrumentos)
     }
