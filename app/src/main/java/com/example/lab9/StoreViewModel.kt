@@ -7,6 +7,8 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import java.time.Instant
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -40,6 +42,16 @@ class StoreViewModel(
     private val preferencesRepository: CatalogPreferencesRepository,
     private val ordersRepository: OrdersRepository
 ) : ViewModel() {
+
+    private val _isReserving = MutableStateFlow(false)
+    val isReserving: StateFlow<Boolean> =
+        _isReserving.asStateFlow()
+
+    private val _concurrencyTestResult =
+        MutableStateFlow<String?>(null)
+
+    val concurrencyTestResult: StateFlow<String?> =
+        _concurrencyTestResult.asStateFlow()
 
     private val cartMutex = Mutex()
     private val favoritesMutex = Mutex()
@@ -113,7 +125,7 @@ class StoreViewModel(
 
         showMessage(
             "No pudimos leer los datos locales. " +
-                    "Cierra y vuelve a abrir la aplicación."
+                "Cierra y vuelve a abrir la aplicación."
         )
 
         emit(_uiState.value)
@@ -149,7 +161,7 @@ class StoreViewModel(
                         current.copy(
                             catalogState = CatalogUiState.Error(
                                 "No pudimos cargar el catálogo. " +
-                                        "Revisa tu conexión e intenta de nuevo."
+                                    "Revisa tu conexión e intenta de nuevo."
                             )
                         )
                     }
@@ -185,7 +197,8 @@ class StoreViewModel(
 
     fun onCatalogOrderChange(order: String) {
         viewModelScope.launch {
-            val result = preferencesRepository.setCatalogOrder(order)
+            val result =
+                preferencesRepository.setCatalogOrder(order)
 
             if (result.isFailure) {
                 showMessage(
@@ -308,14 +321,16 @@ class StoreViewModel(
                 }
 
                 val productsById =
-                    _uiState.value.instrumentos.associateBy { product ->
-                        product.id
+                    _uiState.value.instrumentos.associateBy {
+                        product -> product.id
                     }
 
-                if (cart.any { it.instrumentoId !in productsById }) {
+                if (cart.any {
+                    it.instrumentoId !in productsById
+                }) {
                     submissionError(
                         "No pudimos encontrar todos los productos. " +
-                                "Revisa el catálogo antes de confirmar."
+                            "Revisa el catálogo antes de confirmar."
                     )
                     return@withLock
                 }
@@ -346,7 +361,9 @@ class StoreViewModel(
 
                 if (savedOrder == null) {
                     submissionError(
-                        orderErrorMessage(result.exceptionOrNull())
+                        orderErrorMessage(
+                            result.exceptionOrNull()
+                        )
                     )
                     return@withLock
                 }
@@ -374,7 +391,7 @@ class StoreViewModel(
         if (result.isFailure) {
             submissionError(
                 "Tu pedido ya fue enviado, pero no pudimos " +
-                        "vaciar el carrito. Reintenta para finalizar."
+                    "vaciar el carrito. Reintenta para finalizar."
             )
             return
         }
@@ -398,7 +415,9 @@ class StoreViewModel(
                 val favoriteIds = currentResult.getOrNull()
 
                 if (favoriteIds == null) {
-                    showMessage("No pudimos consultar tus favoritos.")
+                    showMessage(
+                        "No pudimos consultar tus favoritos."
+                    )
                     return@withLock
                 }
 
@@ -408,7 +427,9 @@ class StoreViewModel(
                 )
 
                 if (result.isFailure) {
-                    showMessage("No pudimos actualizar tus favoritos.")
+                    showMessage(
+                        "No pudimos actualizar tus favoritos."
+                    )
                 }
             }
         }
@@ -418,116 +439,229 @@ class StoreViewModel(
         instrumentoId: String,
         cantidad: Int = 1
     ) {
-        if (isCartLocked()) {
-            return
-        }
+        if (isCartLocked() || cantidad <= 0) return
 
         viewModelScope.launch {
             cartMutex.withLock {
-                if (isCartLocked()) {
-                    return@withLock
-                }
+                if (isCartLocked()) return@withLock
 
-                val instrument =
-                    _uiState.value.instrumentos.find { product ->
-                        product.id == instrumentoId
-                    } ?: return@withLock
+                _isReserving.value = true
 
-                val cart = readCart() ?: return@withLock
+                try {
+                    val product =
+                        _uiState.value.instrumentos.find {
+                            it.id == instrumentoId
+                        } ?: return@withLock
 
-                when (
-                    val result = agregarAlPedido(
+                    val cart = readCart() ?: return@withLock
+
+                    val check = agregarAlPedido(
                         cart,
-                        instrument,
+                        product,
                         cantidad
                     )
-                ) {
-                    is ResultadoPedido.Exito -> {
-                        val line = result.pedido.first { item ->
-                            item.instrumentoId == instrumentoId
+
+                    if (check is ResultadoPedido.Rechazado) {
+                        showMessage(check.motivo)
+                        return@withLock
+                    }
+
+                    val current = cart.find {
+                        it.instrumentoId == instrumentoId
+                    }?.cantidad ?: 0
+
+                    var reserved = 0
+
+                    for (attempt in 1..cantidad) {
+                        if (
+                            productRepository.reserveUnit(
+                                instrumentoId
+                            ).isFailure
+                        ) {
+                            break
+                        }
+                        reserved++
+                    }
+
+                    if (reserved != cantidad) {
+                        val reverted = if (reserved > 0) {
+                            productRepository.releaseUnits(
+                                instrumentoId,
+                                reserved
+                            )
+                        } else {
+                            Result.success(Unit)
                         }
 
-                        val saved = cartRepository.setQuantity(
-                            productId = instrumentoId,
-                            quantity = line.cantidad
-                        )
-
                         showMessage(
-                            if (saved.isSuccess) {
-                                null
+                            if (reverted.isSuccess) {
+                                "No hay suficientes existencias."
                             } else {
-                                "No pudimos guardar el producto."
+                                "Reserva incompleta: no se pudieron " +
+                                    "devolver todas las unidades."
                             }
                         )
+                        return@withLock
                     }
 
-                    is ResultadoPedido.Rechazado -> {
-                        showMessage(result.motivo)
+                    val saved = cartRepository.setQuantity(
+                        instrumentoId,
+                        current + cantidad
+                    )
+
+                    if (saved.isFailure) {
+                        val reverted =
+                            productRepository.releaseUnits(
+                                instrumentoId,
+                                cantidad
+                            )
+
+                        showMessage(
+                            if (reverted.isSuccess) {
+                                "No pudimos guardar el pedido."
+                            } else {
+                                "Error de sincronización. No vuelvas " +
+                                    "a reservar hasta revisar las existencias."
+                            }
+                        )
+                    } else {
+                        showMessage(null)
                     }
+                } finally {
+                    _isReserving.value = false
                 }
             }
         }
     }
 
     fun disminuirProducto(instrumentoId: String) {
-        if (isCartLocked()) {
-            return
-        }
+        changeCartQuantity(
+            instrumentoId,
+            removeAll = false
+        )
+    }
+
+    fun eliminarProducto(instrumentoId: String) {
+        changeCartQuantity(
+            instrumentoId,
+            removeAll = true
+        )
+    }
+
+    private fun changeCartQuantity(
+        instrumentoId: String,
+        removeAll: Boolean
+    ) {
+        if (isCartLocked()) return
 
         viewModelScope.launch {
             cartMutex.withLock {
-                if (isCartLocked()) {
-                    return@withLock
-                }
+                if (isCartLocked()) return@withLock
 
-                val cart = readCart() ?: return@withLock
+                _isReserving.value = true
 
-                val line = cart.find { item ->
-                    item.instrumentoId == instrumentoId
-                } ?: return@withLock
+                try {
+                    val cart = readCart() ?: return@withLock
 
-                val result = if (line.cantidad <= 1) {
-                    cartRepository.removeProduct(instrumentoId)
-                } else {
-                    cartRepository.setQuantity(
-                        productId = instrumentoId,
-                        quantity = line.cantidad - 1
-                    )
-                }
+                    val line = cart.find {
+                        it.instrumentoId == instrumentoId
+                    } ?: return@withLock
 
-                showMessage(
-                    if (result.isSuccess) {
-                        null
+                    val amount = if (removeAll) {
+                        line.cantidad
                     } else {
-                        "No pudimos actualizar la cantidad."
+                        1
                     }
-                )
+
+                    val released =
+                        productRepository.releaseUnits(
+                            instrumentoId,
+                            amount
+                        )
+
+                    if (released.isFailure) {
+                        showMessage(
+                            "No pudimos devolver las existencias."
+                        )
+                        return@withLock
+                    }
+
+                    val updated =
+                        if (line.cantidad == amount) {
+                            cartRepository.removeProduct(
+                                instrumentoId
+                            )
+                        } else {
+                            cartRepository.setQuantity(
+                                instrumentoId,
+                                line.cantidad - amount
+                            )
+                        }
+
+                    if (updated.isFailure) {
+                        var restored = 0
+
+                        repeat(amount) {
+                            if (
+                                productRepository.reserveUnit(
+                                    instrumentoId
+                                ).isSuccess
+                            ) {
+                                restored++
+                            }
+                        }
+
+                        showMessage(
+                            if (restored == amount) {
+                                "No pudimos actualizar el carrito."
+                            } else {
+                                "Error de sincronización. Revisa " +
+                                    "el pedido y las existencias."
+                            }
+                        )
+                    } else {
+                        showMessage(null)
+                    }
+                } finally {
+                    _isReserving.value = false
+                }
             }
         }
     }
 
-    fun eliminarProducto(instrumentoId: String) {
-        if (isCartLocked()) {
-            return
-        }
+    fun onConcurrencyTest(
+        productId: String,
+        attempts: Int = 20
+    ) {
+        if (isCartLocked() || attempts <= 0) return
 
         viewModelScope.launch {
             cartMutex.withLock {
-                if (isCartLocked()) {
-                    return@withLock
-                }
+                if (isCartLocked()) return@withLock
 
-                val result = cartRepository.removeProduct(
-                    instrumentoId
-                )
+                _isReserving.value = true
+                _concurrencyTestResult.value =
+                    "Probando reservas..."
 
-                showMessage(
-                    if (result.isSuccess) {
-                        null
-                    } else {
-                        "No pudimos eliminar el producto."
+                try {
+                    val results = List(attempts) {
+                        async {
+                            productRepository.reserveUnit(
+                                productId
+                            )
+                        }
+                    }.awaitAll()
+
+                    val successes = results.count {
+                        it.isSuccess
                     }
-                )
+
+                    _concurrencyTestResult.value =
+                        "Éxitos: $successes · " +
+                            "Rechazos: ${attempts - successes}"
+                } finally {
+                    _isReserving.value = false
+                }
             }
         }
     }
@@ -545,8 +679,10 @@ class StoreViewModel(
     }
 
     private fun isCartLocked(): Boolean {
-        return _orderSubmissionState.value ==
-                OrderSubmissionState.Loading || pendingReceipt != null
+        return _isReserving.value ||
+            _orderSubmissionState.value ==
+                OrderSubmissionState.Loading ||
+            pendingReceipt != null
     }
 
     private fun showMessage(message: String?) {
@@ -560,14 +696,16 @@ class StoreViewModel(
             OrderSubmissionState.Error(message)
     }
 
-    private fun orderErrorMessage(exception: Throwable?): String {
+    private fun orderErrorMessage(
+        exception: Throwable?
+    ): String {
         val reason =
             (exception as? OrderRepositoryException)?.reason
 
         return when (reason) {
             OrderFailureReason.CONNECTION ->
                 "No pudimos enviar tu pedido. " +
-                        "Revisa tu conexión e intenta de nuevo."
+                    "Revisa tu conexión e intenta de nuevo."
 
             OrderFailureReason.NOT_FOUND,
             OrderFailureReason.SERVER ->
@@ -582,25 +720,31 @@ class StoreViewModel(
     }
 
     companion object {
-        val Factory: ViewModelProvider.Factory = viewModelFactory {
-            initializer {
-                val application = checkNotNull(
-                    this[
-                        ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY
-                    ]
-                ) as StoreApplication
+        val Factory: ViewModelProvider.Factory =
+            viewModelFactory {
+                initializer {
+                    val application = checkNotNull(
+                        this[
+                            ViewModelProvider.AndroidViewModelFactory
+                                .APPLICATION_KEY
+                        ]
+                    ) as StoreApplication
 
-                val container = application.container
+                    val container = application.container
 
-                StoreViewModel(
-                    productRepository = container.productRepository,
-                    favoritesRepository = container.favoritesRepository,
-                    cartRepository = container.cartRepository,
-                    preferencesRepository =
-                        container.catalogPreferencesRepository,
-                    ordersRepository = container.ordersRepository
-                )
+                    StoreViewModel(
+                        productRepository =
+                            container.productRepository,
+                        favoritesRepository =
+                            container.favoritesRepository,
+                        cartRepository =
+                            container.cartRepository,
+                        preferencesRepository =
+                            container.catalogPreferencesRepository,
+                        ordersRepository =
+                            container.ordersRepository
+                    )
+                }
             }
-        }
     }
 }
