@@ -4,6 +4,7 @@ import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.MetadataChanges
 import java.io.IOException
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -12,114 +13,127 @@ import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.tasks.await
-
+import kotlinx.coroutines.withTimeoutOrNull
 
 class FirestoreProductRepository(
     private val firestore: FirebaseFirestore,
     private val sessionRepository: SessionRepository
 ) : ProductRepository {
 
-    
-override suspend fun reserveUnit(
-    productId: String
-): Result<Unit> {
-    return captureRepositoryResult {
-        sessionRepository.ensureAnonymousSession()
-            .getOrThrow()
+    override suspend fun reserveUnit(
+        productId: String
+    ): Result<Unit> {
+        return captureResult {
+            ensureSession()
 
-        val document = firestore
-            .collection("products")
-            .document(productId)
+            val document = firestore
+                .collection("products")
+                .document(productId)
 
-        firestore.runTransaction { transaction ->
-            val snapshot = transaction.get(document)
+            firestore.runTransaction { transaction ->
+                val snapshot = transaction.get(document)
 
-            if (!snapshot.exists()) {
-                throw IllegalStateException(
-                    "Product not found."
+                if (!snapshot.exists()) {
+                    throw IllegalStateException(
+                        "Product not found."
+                    )
+                }
+
+                val stock = snapshot.getLong("stock")
+                    ?: throw IllegalStateException(
+                        "Invalid product stock."
+                    )
+
+                if (stock <= 0L) {
+                    throw IllegalStateException(
+                        "Product is out of stock."
+                    )
+                }
+
+                transaction.update(
+                    document,
+                    "stock",
+                    stock - 1L
                 )
-            }
 
-            val stock = snapshot.getLong("stock")
-                ?: throw IllegalStateException(
-                    "Invalid stock."
-                )
-
-            if (stock <= 0L) {
-                throw IllegalStateException(
-                    "Out of stock."
-                )
-            }
-
-            transaction.update(
-                document,
-                "stock",
-                stock - 1L
-            )
-
-            Unit
-        }.await()
+                Unit
+            }.await()
+        }
     }
-}
 
-override suspend fun releaseUnits(
-    productId: String,
-    quantity: Int
-): Result<Unit> {
-    return captureRepositoryResult {
-        require(quantity > 0)
-
-        sessionRepository.ensureAnonymousSession()
-            .getOrThrow()
-
-        val document = firestore
-            .collection("products")
-            .document(productId)
-
-        firestore.runTransaction { transaction ->
-            val snapshot = transaction.get(document)
-
-            if (!snapshot.exists()) {
-                throw IllegalStateException(
-                    "Product not found."
-                )
+    override suspend fun releaseUnits(
+        productId: String,
+        quantity: Int
+    ): Result<Unit> {
+        return captureResult {
+            require(quantity > 0) {
+                "Quantity must be positive."
             }
 
-            val stock = snapshot.getLong("stock")
-                ?: throw IllegalStateException(
-                    "Invalid stock."
+            ensureSession()
+
+            val document = firestore
+                .collection("products")
+                .document(productId)
+
+            firestore.runTransaction { transaction ->
+                val snapshot = transaction.get(document)
+
+                if (!snapshot.exists()) {
+                    throw IllegalStateException(
+                        "Product not found."
+                    )
+                }
+
+                val stock = snapshot.getLong("stock")
+                    ?: throw IllegalStateException(
+                        "Invalid product stock."
+                    )
+
+                val updatedStock = stock + quantity.toLong()
+
+                require(updatedStock <= Int.MAX_VALUE.toLong()) {
+                    "Stock exceeds the maximum allowed value."
+                }
+
+                transaction.update(
+                    document,
+                    "stock",
+                    updatedStock
                 )
 
-            val updatedStock = stock + quantity.toLong()
-
-            require(updatedStock <= Int.MAX_VALUE.toLong())
-
-            transaction.update(
-                document,
-                "stock",
-                updatedStock
-            )
-
-            Unit
-        }.await()
+                Unit
+            }.await()
+        }
     }
-}
 
-
-    
     override fun observeProducts(): Flow<List<Product>> {
         return flow {
-            val sessionResult = withTimeoutOrNull(15_000L) {
-                sessionRepository.ensureAnonymousSession()
-            } ?: throw IOException(
-                "Authentication timed out."
-            )
-
-            sessionResult.getOrThrow()
-
+            ensureSession()
             emitAll(observeFirestoreProducts())
+        }
+    }
+
+    private suspend fun ensureSession() {
+        val sessionResult = withTimeoutOrNull(15_000L) {
+            sessionRepository.ensureAnonymousSession()
+        } ?: throw IOException(
+            "Authentication timed out."
+        )
+
+        sessionResult.getOrThrow()
+    }
+
+    private suspend fun <T> captureResult(
+        operation: suspend () -> T
+    ): Result<T> {
+        return try {
+            Result.success(operation())
+        } catch (exception: CancellationException) {
+            throw exception
+        } catch (exception: Exception) {
+            Result.failure(exception)
         }
     }
 
