@@ -46,7 +46,10 @@ fun TiendaNavigation(
     orderDetailUiState: OrderDetailUiState,
     onLoadOrders: (Boolean) -> Unit,
     onLoadOrderDetail: (String, Boolean) -> Unit,
-    onRetryCatalog: () -> Unit
+    onRetryCatalog: () -> Unit,
+    isReserving: Boolean,
+    concurrencyTestResult: String?,
+    onConcurrencyTest: (String, Int) -> Unit
 ) {
     val backStack = rememberNavBackStack(StoreNavKey.Catalog)
 
@@ -143,6 +146,9 @@ fun TiendaNavigation(
                                 mensajePedido = currentUiState.mensajePedido,
                                 onFavoritoToggle = onFavoritoToggle,
                                 onAgregarPedido = onAgregarProducto,
+                                isReserving = isReserving,
+                                concurrencyTestResult = concurrencyTestResult,
+                                onConcurrencyTest = onConcurrencyTest,
                                 onVerPerfil = { brandId ->
                                     backStack.add(
                                         StoreNavKey.Profile(
