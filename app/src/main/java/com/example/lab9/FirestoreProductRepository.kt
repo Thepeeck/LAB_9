@@ -13,12 +13,102 @@ import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.coroutines.tasks.await
+
 
 class FirestoreProductRepository(
     private val firestore: FirebaseFirestore,
     private val sessionRepository: SessionRepository
 ) : ProductRepository {
 
+    
+override suspend fun reserveUnit(
+    productId: String
+): Result<Unit> {
+    return captureRepositoryResult {
+        sessionRepository.ensureAnonymousSession()
+            .getOrThrow()
+
+        val document = firestore
+            .collection("products")
+            .document(productId)
+
+        firestore.runTransaction { transaction ->
+            val snapshot = transaction.get(document)
+
+            if (!snapshot.exists()) {
+                throw IllegalStateException(
+                    "Product not found."
+                )
+            }
+
+            val stock = snapshot.getLong("stock")
+                ?: throw IllegalStateException(
+                    "Invalid stock."
+                )
+
+            if (stock <= 0L) {
+                throw IllegalStateException(
+                    "Out of stock."
+                )
+            }
+
+            transaction.update(
+                document,
+                "stock",
+                stock - 1L
+            )
+
+            Unit
+        }.await()
+    }
+}
+
+override suspend fun releaseUnits(
+    productId: String,
+    quantity: Int
+): Result<Unit> {
+    return captureRepositoryResult {
+        require(quantity > 0)
+
+        sessionRepository.ensureAnonymousSession()
+            .getOrThrow()
+
+        val document = firestore
+            .collection("products")
+            .document(productId)
+
+        firestore.runTransaction { transaction ->
+            val snapshot = transaction.get(document)
+
+            if (!snapshot.exists()) {
+                throw IllegalStateException(
+                    "Product not found."
+                )
+            }
+
+            val stock = snapshot.getLong("stock")
+                ?: throw IllegalStateException(
+                    "Invalid stock."
+                )
+
+            val updatedStock = stock + quantity.toLong()
+
+            require(updatedStock <= Int.MAX_VALUE.toLong())
+
+            transaction.update(
+                document,
+                "stock",
+                updatedStock
+            )
+
+            Unit
+        }.await()
+    }
+}
+
+
+    
     override fun observeProducts(): Flow<List<Product>> {
         return flow {
             val sessionResult = withTimeoutOrNull(15_000L) {
